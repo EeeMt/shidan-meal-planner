@@ -25,7 +25,9 @@
     try { localStorage.removeItem(PREFIX + key); } catch (e) { /* ignore */ }
   }
 
-  function loadState() {
+  // 修复/补全任意来源的原始状态（localStorage 或服务器），返回完整的 7 键对象
+  function repairState(raw) {
+    raw = raw || {};
     const defaults = {
       days: 7,
       servings: 2,
@@ -41,7 +43,7 @@
       dinnerOnly: false,
       richDinner: false
     };
-    const saved = load('settings', {});
+    const saved = raw.settings && typeof raw.settings === 'object' ? raw.settings : {};
     const settings = Object.assign({}, defaults, saved);
     // 兼容旧数据/异常值
     ['days', 'servings', 'adults', 'kids', 'kidAge', 'maxMissing', 'quickLimit'].forEach(function (k) {
@@ -50,15 +52,38 @@
     if (!Number.isFinite(Number(settings.kidPortion))) settings.kidPortion = defaults.kidPortion;
     if (['normal', 'mild', 'none'].indexOf(settings.familySpice) === -1) settings.familySpice = defaults.familySpice;
     if (['normal', 'mild', 'none'].indexOf(settings.kidSpice) === -1) settings.kidSpice = defaults.kidSpice;
+    const shopping = raw.shopping && typeof raw.shopping === 'object' && Array.isArray(raw.shopping.items)
+      ? raw.shopping
+      : { items: [], source: null };
     return {
+      inventory: Array.isArray(raw.inventory) ? raw.inventory : [],
+      customRecipes: Array.isArray(raw.customRecipes) ? raw.customRecipes : [],
+      disabledRecipes: Array.isArray(raw.disabledRecipes) ? raw.disabledRecipes : [],
+      settings: settings,
+      plan: raw.plan || null,
+      shopping: shopping,
+      cravings: Array.isArray(raw.cravings) ? raw.cravings : []
+    };
+  }
+
+  function loadState() {
+    return repairState({
       inventory: load('inventory', []),
       customRecipes: load('customRecipes', []),
       disabledRecipes: load('disabledRecipes', []),
-      settings: settings,
+      settings: load('settings', {}),
       plan: load('plan', null),
       shopping: load('shopping', { items: [], source: null }),
       cravings: load('cravings', [])
-    };
+    });
+  }
+
+  // 本机是否保存过数据（供首次同步时向服务器播种迁移）
+  function hasLocalData() {
+    return ['inventory', 'customRecipes', 'disabledRecipes', 'settings', 'plan', 'shopping', 'cravings']
+      .some(function (k) {
+        try { return localStorage.getItem(PREFIX + k) !== null; } catch (e) { return false; }
+      });
   }
 
   function saveState(state) {
@@ -96,5 +121,5 @@
     return state;
   }
 
-  root.Storage = { load: load, save: save, remove: remove, loadState: loadState, saveState: saveState, exportData: exportData, importData: importData };
+  root.Storage = { load: load, save: save, remove: remove, loadState: loadState, saveState: saveState, repairState: repairState, hasLocalData: hasLocalData, exportData: exportData, importData: importData };
 })(typeof self !== 'undefined' ? self : this);

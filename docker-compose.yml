@@ -6,3 +6,9 @@ services:
     ports:
       - "8765:8765"
     restart: unless-stopped
+    # 家庭共享数据持久化（data/state.json）
+    volumes:
+      - ./data:/app/data
+    # 如需通过自定义域名访问（非 IP / 主机名），在此放行，逗号分隔多个：
+    # environment:
+    #   - SHIDAN_HOSTS=shidan.home.example.com

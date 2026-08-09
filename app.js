@@ -52,6 +52,46 @@
 
   function save() {
     S.saveState(state);
+    Sync.push(); // 推送服务器（离线时无副作用）
+  }
+
+  // 同步用：服务器端状态的 7 键快照
+  function syncSnapshot() {
+    return {
+      inventory: state.inventory,
+      customRecipes: state.customRecipes,
+      disabledRecipes: state.disabledRecipes,
+      settings: state.settings,
+      plan: state.plan,
+      shopping: state.shopping,
+      cravings: state.cravings
+    };
+  }
+
+  // 应用服务器端状态；返回 true 表示可消费该版本（false = 编辑中暂缓）
+  function applyRemoteState(data) {
+    if ($('#modal-root').innerHTML !== '') return false; // 模态框开着：不顶掉正在编辑的内容
+    const repaired = S.repairState(data);
+    const before = JSON.stringify(state);
+    Object.keys(state).forEach(function (k) { delete state[k]; });
+    Object.assign(state, repaired);
+    S.saveState(state); // 服务器为准，localStorage 降级为缓存
+    if (before !== JSON.stringify(state)) {
+      // 重渲染前保存聚焦输入框的未提交值（库存输入、设置数字/下拉等），渲染后恢复
+      const act = document.activeElement;
+      let typing = null;
+      if (act && (act.tagName === 'INPUT' || act.tagName === 'SELECT' || act.tagName === 'TEXTAREA') &&
+          act.type !== 'checkbox' && act.type !== 'radio') {
+        const loc = act.id ? '#' + act.id : (act.dataset.setting ? '[data-setting="' + act.dataset.setting + '"]' : null);
+        if (loc) typing = { loc: loc, value: act.value };
+      }
+      renderAll();
+      if (typing) {
+        const el = typing.loc.charAt(0) === '#' ? document.getElementById(typing.loc.slice(1)) : document.querySelector(typing.loc);
+        if (el) { el.focus(); el.value = typing.value; }
+      }
+    }
+    return true;
   }
 
   function toast(msg) {
@@ -74,6 +114,11 @@
 
   function closeModal() {
     $('#modal-root').innerHTML = '';
+    // 编辑期间错过的远端变更：关闭时补拉一次（提交在途时由 PUT 回显送达，无需补拉）
+    if (Sync.wasSkipped() && !Sync.isPushing()) {
+      Sync.clearSkipped();
+      Sync.refresh();
+    }
   }
 
   function difficultyStars(n) {
@@ -978,10 +1023,10 @@
       '<button class="btn btn-sm" data-act="export-data">导出</button></div>' +
       '<div class="setting-row"><div><div class="lbl">导入数据</div><div class="hint">从备份文件恢复</div></div>' +
       '<button class="btn btn-sm" data-act="import-data">导入</button></div>' +
-      '<div class="setting-row"><div><div class="lbl">清空全部数据</div><div class="hint">删除本浏览器中的所有数据</div></div>' +
+      '<div class="setting-row"><div><div class="lbl">清空全部数据</div><div class="hint">清空家庭共享数据（服务器与所有设备同步清空）</div></div>' +
       '<button class="btn btn-sm btn-danger" data-act="reset-data">清空</button></div>' +
       '</div>' +
-      '<div class="card muted">🍳 食单 · 一周食谱规划<br>数据仅保存在本浏览器中，不会上传到任何服务器。换手机/电脑后可用“导出/导入”迁移数据。</div>';
+      '<div class="card muted">🍳 食单 · 一周食谱规划<br>服务器模式下数据保存在服务器并供全家实时共享，离线时暂存本浏览器；换设备打开同一地址即可，也可用“导出/导入”迁移。</div>';
   }
 
   // ==================== 复制 / 导出 ====================
@@ -1037,10 +1082,11 @@
 
   function resetData() {
     if (!window.confirm('确定清空所有数据？此操作不可恢复。')) return;
-    ['inventory', 'customRecipes', 'settings', 'plan', 'shopping', 'cravings'].forEach(S.remove);
+    ['inventory', 'customRecipes', 'disabledRecipes', 'settings', 'plan', 'shopping', 'cravings', 'rev'].forEach(S.remove);
     const fresh = S.loadState();
     Object.keys(state).forEach(function (k) { delete state[k]; });
     Object.assign(state, fresh);
+    save(); // 清空本地并推送服务器，全设备同步清空
     renderAll();
     switchTab('settings');
     toast('已清空');
@@ -1202,6 +1248,20 @@
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
       navigator.serviceWorker.register('sw.js').catch(function () { /* 离线功能不可用时静默 */ });
     }
+    Sync.init({
+      getState: syncSnapshot,
+      applyState: applyRemoteState,
+      hasLocalData: S.hasLocalData,
+      confirmSeed: function () { // 服务器无数据时，由用户确认是否上传本机数据（防止陈旧设备自动播种）
+        return window.confirm('服务器上还没有共享数据，是否把本机数据上传作为家庭共享数据？');
+      },
+      onStatus: function (s) {
+        const el = $('#syncBadge');
+        if (!el) return;
+        el.hidden = s !== 'offline';
+        el.textContent = '离线（仅本地）';
+      }
+    });
   }
 
   init();
