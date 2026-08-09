@@ -407,13 +407,13 @@
     }
 
     // 丰盛晚餐：排满两个配菜位，组合出两荤一素
-    // （主菜缺啥补啥；配菜组合按主菜荤素推导。荤按家常口径：蛋、豆腐均不算荤，
-    //   故番茄炒蛋、香煎豆腐这类主菜的两荤一素实为“两素一荤”）
+    // 目标 = 主菜 + 两个配菜。主菜是荤 → 配菜补一素一荤；
+    // 主菜是素（蛋豆/素菜按家常口径均不算荤）→ 两个配菜位都排荤，凑满两荤一素
     if (opts.richDinner && mealType === 'dinner') {
-      const firstCats = proteinOk ? VEG_CATS : PROTEIN_CATS;
-      const secondCats = (proteinOk || vegOk) ? PROTEIN_CATS : VEG_CATS;
+      const firstCats = meatOk ? VEG_CATS : PROTEIN_CATS;
+      const secondCats = PROTEIN_CATS;
       const firstFilter = firstCats === VEG_CATS ? vegSideFilter : meatSideFilter;
-      const secondFilter = secondCats === VEG_CATS ? vegSideFilter : meatSideFilter;
+      const secondFilter = meatSideFilter;
       if (!addSide(firstCats, sideLimit, firstFilter)) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99, firstFilter);
       if (!addSide(secondCats, sideLimit, secondFilter)) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99, secondFilter);
     } else {
