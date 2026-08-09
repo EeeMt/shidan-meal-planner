@@ -39,6 +39,11 @@
     return RECIPES.concat(state.customRecipes);
   }
 
+  // 未被禁用的菜谱：排菜、换菜、购物清单只在这些菜里选
+  function enabledRecipes() {
+    return allRecipes().filter(function (r) { return state.disabledRecipes.indexOf(r.id) === -1; });
+  }
+
   function recipesById() {
     const map = {};
     allRecipes().forEach(function (r) { map[r.id] = r; });
@@ -245,7 +250,7 @@
     const opts = Object.assign({}, state.settings);
     opts.servings = familyTotal(state.settings);
     opts.maxSpice = maxSpice();
-    state.plan = C.planWeek(allRecipes(), state.inventory, opts);
+    state.plan = C.planWeek(enabledRecipes(), state.inventory, opts);
     save();
     renderAll();
   }
@@ -291,7 +296,7 @@
     const opts = Object.assign({}, state.settings);
     opts.servings = familyTotal(state.settings);
     opts.maxSpice = maxSpice();
-    C.replaceMeal(plan, allRecipes(), state.inventory, opts, Number(dayIdx), mealKey);
+    C.replaceMeal(plan, enabledRecipes(), state.inventory, opts, Number(dayIdx), mealKey);
     save();
     renderAll();
     toast('已换一道菜');
@@ -338,7 +343,7 @@
       return C.normName(r.name).includes(q) || r.ingredients.some(function (i) { return C.normName(i.name).includes(q); });
     });
 
-    const pickedCount = state.cravings.length;
+    const pickedCount = state.cravings.filter(function (id) { return state.disabledRecipes.indexOf(id) === -1; }).length;
     panel.innerHTML =
       '<div class="toolbar">' +
       '<div class="search-box"><span>🔍</span><input id="recipeSearch" type="search" placeholder="搜菜名或食材" value="' + esc(recipeFilter.q) + '"></div>' +
@@ -352,9 +357,10 @@
       (filtered.length
         ? '<div class="recipe-grid">' + filtered.map(function (r) {
           const picked = state.cravings.indexOf(r.id) !== -1;
+          const disabled = state.disabledRecipes.indexOf(r.id) !== -1;
           const isCustom = r.id.indexOf('custom-') === 0;
           const isImported = r.id.indexOf('imported-') === 0;
-          return '<div class="recipe-card" data-recipe="' + esc(r.id) + '">' +
+          return '<div class="recipe-card' + (disabled ? ' disabled' : '') + '" data-recipe="' + esc(r.id) + '">' +
             (isImported ? '<span class="rc-custom" style="background:var(--primary-soft);color:var(--primary-dark);">导入</span>' : (isCustom ? '<span class="rc-custom">自建</span>' : '')) +
             '<span class="rc-emoji">' + esc(r.emoji || '🍽️') + '</span>' +
             '<div class="rc-name">' + esc(r.name) + '</div>' +
@@ -363,6 +369,7 @@
             '<span>⏱' + r.minutes + '分</span><span>' + difficultyStars(r.difficulty) + '</span></div>' +
             stockBadge(r) +
             '<button class="rc-pick' + (picked ? ' picked' : '') + '" data-act="toggle-pick" data-recipe="' + esc(r.id) + '">' + (picked ? '✓' : '＋') + '</button>' +
+            '<button class="rc-toggle' + (disabled ? ' off' : '') + '" data-act="toggle-disable" data-recipe="' + esc(r.id) + '" title="' + (disabled ? '已禁用，点击启用' : '点击禁用，排菜/换菜时将跳过') + '">' + (disabled ? '▶' : '⏸') + '</button>' +
             (isCustom || isImported
               ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
                 '<button class="btn btn-sm" data-act="edit-recipe" data-recipe="' + esc(r.id) + '">编辑</button>' +
@@ -373,7 +380,28 @@
         : '<div class="empty-state"><span class="es-ico">🔍</span>没有找到匹配的菜谱</div>');
   }
 
+  function toggleDisable(recipeId) {
+    const idx = state.disabledRecipes.indexOf(recipeId);
+    if (idx === -1) {
+      state.disabledRecipes.push(recipeId);
+      // 禁用的菜不再出现在"想吃"勾选里
+      const cIdx = state.cravings.indexOf(recipeId);
+      if (cIdx !== -1) state.cravings.splice(cIdx, 1);
+      toast('已禁用，排菜/换菜时将跳过，重新生成计划后生效');
+    } else {
+      state.disabledRecipes.splice(idx, 1);
+      toast('已启用');
+    }
+    save();
+    renderRecipes();
+  }
+
   function togglePick(recipeId) {
+    // 禁用的菜不允许勾选，避免计数与购物清单不一致
+    if (state.disabledRecipes.indexOf(recipeId) !== -1) {
+      toast('这道菜已禁用，先启用再勾选');
+      return;
+    }
     const idx = state.cravings.indexOf(recipeId);
     if (idx === -1) state.cravings.push(recipeId);
     else state.cravings.splice(idx, 1);
@@ -383,7 +411,8 @@
 
   function cravingsShopping() {
     const idMap = recipesById();
-    const selected = state.cravings.map(function (id) { return idMap[id]; }).filter(Boolean);
+    const selected = state.cravings.map(function (id) { return idMap[id]; }).filter(Boolean)
+      .filter(function (r) { return state.disabledRecipes.indexOf(r.id) === -1; });
     if (!selected.length) {
       toast('还没有选菜');
       return;
@@ -1043,6 +1072,7 @@
           return;
         case 'plan-missing-shopping': planMissingShopping(); return;
         case 'toggle-pick': togglePick(target.dataset.recipe); return;
+        case 'toggle-disable': toggleDisable(target.dataset.recipe); return;
         case 'cravings-shopping': cravingsShopping(); return;
         case 'import-recipes': importRecipesModal(); return;
         case 'import-source': handleImportSource(target.dataset.src); return;

@@ -353,6 +353,22 @@ details.steps summary {
   font-size: 15px;
 }
 .recipe-card .rc-pick.picked { background: var(--green); color: #fff; }
+.recipe-card .rc-toggle {
+  position: absolute;
+  top: 44px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+.recipe-card .rc-toggle.off { background: var(--amber-soft); color: var(--amber); }
+.recipe-card.disabled { opacity: .55; filter: grayscale(.4); }
+.recipe-card.disabled .rc-pick { opacity: .4; pointer-events: none; }
 .recipe-card .rc-stock {
   margin-top: 6px;
   font-size: 11px;

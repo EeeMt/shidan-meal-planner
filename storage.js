@@ -53,6 +53,7 @@
     return {
       inventory: load('inventory', []),
       customRecipes: load('customRecipes', []),
+      disabledRecipes: load('disabledRecipes', []),
       settings: settings,
       plan: load('plan', null),
       shopping: load('shopping', { items: [], source: null }),
@@ -63,6 +64,7 @@
   function saveState(state) {
     save('inventory', state.inventory);
     save('customRecipes', state.customRecipes);
+    save('disabledRecipes', state.disabledRecipes);
     save('settings', state.settings);
     save('plan', state.plan);
     save('shopping', state.shopping);
@@ -76,6 +78,7 @@
       exportedAt: new Date().toISOString(),
       inventory: state.inventory,
       customRecipes: state.customRecipes,
+      disabledRecipes: state.disabledRecipes,
       settings: state.settings,
       shopping: state.shopping
     };
@@ -85,6 +88,7 @@
     if (!json || json.app !== 'mealplanner') throw new Error('不是本应用导出的数据文件');
     state.inventory = Array.isArray(json.inventory) ? json.inventory : [];
     state.customRecipes = Array.isArray(json.customRecipes) ? json.customRecipes : [];
+    state.disabledRecipes = Array.isArray(json.disabledRecipes) ? json.disabledRecipes : [];
     if (json.settings) state.settings = Object.assign(state.settings, json.settings);
     if (json.shopping) state.shopping = json.shopping;
     state.plan = null;
