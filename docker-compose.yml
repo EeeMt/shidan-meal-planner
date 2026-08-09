@@ -1,0 +1,8 @@
+services:
+  shidan-meal-planner:
+    build: .
+    image: shidan-meal-planner:latest
+    container_name: shidan-meal-planner
+    ports:
+      - "8765:8765"
+    restart: unless-stopped
