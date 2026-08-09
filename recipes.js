@@ -99,6 +99,16 @@
       ],
       steps: ['豆腐切块摆盘，皮蛋切瓣放旁边。', '蒜末、生抽、醋、芝麻油调成汁。', '淋在豆腐上，撒葱花即可。']
     },
+    {
+      id: 'huanggua-chaojidan', name: '黄瓜炒鸡蛋', emoji: '🥒', category: '蛋豆', difficulty: 1, minutes: 10, servings: 2,
+      tags: ['快手', '清淡'],
+      ingredients: [
+        { name: '黄瓜', amount: '2根' }, { name: '鸡蛋', amount: '3个' },
+        { name: '小葱', amount: '1根' }, { name: '盐', amount: '适量' },
+        { name: '食用油', amount: '2勺' }
+      ],
+      steps: ['黄瓜斜切薄片，鸡蛋加少许盐和1勺水打散。', '热油倒入蛋液，凝固后划散盛出。', '留底油下黄瓜片大火快炒约1分钟。', '倒回鸡蛋，加盐炒匀，撒葱花。']
+    },
 
     // ============ 荤菜 ============
     {
@@ -338,6 +348,64 @@
       ],
       steps: ['茄子切条，用盐腌10分钟挤去水分。', '煎茄条至软身盛出。', '炒散肉末，加豆瓣酱、蒜末炒香。', '倒回茄子，加生抽、蚝油和少许水焖3分钟，勾芡。']
     },
+    {
+      id: 'shuizhu-roupian', name: '水煮肉片', emoji: '🥩', category: '荤菜', difficulty: 2, minutes: 30, servings: 2,
+      tags: ['下饭', '微辣'],
+      ingredients: [
+        { name: '猪里脊', amount: '300g' }, { name: '豆芽', amount: '200g' },
+        { name: '郫县豆瓣酱', amount: '1勺' }, { name: '火锅底料', amount: '1/4包', optional: true },
+        { name: '大蒜', amount: '5瓣' }, { name: '干辣椒', amount: '5个', optional: true },
+        { name: '花椒', amount: '半勺' }, { name: '蛋清', amount: '1个' },
+        { name: '淀粉', amount: '1勺' }, { name: '料酒', amount: '1勺' },
+        { name: '小葱', amount: '1根' }, { name: '盐', amount: '适量' }
+      ],
+      steps: ['里脊切薄片，加料酒、盐、蛋清和淀粉抓匀，淋少许油腌15分钟。', '豆芽洗净焯水1分钟，铺在大碗底部。', '热油爆香蒜末，下豆瓣酱和火锅底料小火炒出红油。', '加一碗水煮开，转小火将肉片一片片下锅，煮至变色再煮1分钟。', '连汤带肉倒入碗中，撒干辣椒段、花椒和葱花。', '另起锅烧热油，淋在表面激香。']
+    },
+    {
+      id: 'tudou-rousi', name: '土豆肉丝', emoji: '🥔', category: '荤菜', difficulty: 1, minutes: 20, servings: 2,
+      tags: ['快手', '下饭', '微辣'],
+      ingredients: [
+        { name: '猪瘦肉', amount: '200g' }, { name: '土豆', amount: '2个' },
+        { name: '干辣椒', amount: '3个' }, { name: '大蒜', amount: '2瓣' },
+        { name: '小葱', amount: '1根' }, { name: '生抽', amount: '1勺' },
+        { name: '料酒', amount: '1勺' }, { name: '淀粉', amount: '1勺' }, { name: '盐', amount: '适量' }
+      ],
+      steps: ['肉切丝，加料酒、生抽、淀粉抓匀腌10分钟。', '土豆切细丝，清水冲洗去淀粉后沥干。', '热油滑炒肉丝至变色盛出。', '爆香干辣椒、蒜片，下土豆丝大火炒约2分钟。', '倒回肉丝，加生抽和盐炒匀，撒葱花。']
+    },
+    {
+      id: 'huanggua-roupian', name: '黄瓜肉片', emoji: '🥒', category: '荤菜', difficulty: 1, minutes: 15, servings: 2,
+      tags: ['快手', '清淡', '微辣'],
+      ingredients: [
+        { name: '猪瘦肉', amount: '200g' }, { name: '黄瓜', amount: '2根' },
+        { name: '干辣椒', amount: '2个' }, { name: '大蒜', amount: '3瓣' },
+        { name: '生姜', amount: '2片' }, { name: '生抽', amount: '1勺' },
+        { name: '料酒', amount: '半勺' }, { name: '蚝油', amount: '半勺' },
+        { name: '淀粉', amount: '1勺' }, { name: '盐', amount: '适量' }
+      ],
+      steps: ['肉切薄片，加料酒、生抽、淀粉和少许盐抓匀，淋少许油腌10分钟。', '黄瓜斜切菱形片，姜切丝，蒜切片。', '热油爆香姜蒜和干辣椒，下肉片中火滑炒至变色盛出。', '大火下黄瓜片快炒约1分钟，倒回肉片，加生抽、蚝油和盐炒匀。']
+    },
+    {
+      id: 'xingbaogu-wuhuarou', name: '杏鲍菇五花肉', emoji: '🍄', category: '荤菜', difficulty: 2, minutes: 25, servings: 2,
+      tags: ['下饭', '微辣'],
+      ingredients: [
+        { name: '五花肉', amount: '200g' }, { name: '杏鲍菇', amount: '400g' },
+        { name: '小米辣', amount: '3个' }, { name: '大蒜', amount: '3瓣' },
+        { name: '生姜', amount: '2片' }, { name: '蒜苗', amount: '1根' },
+        { name: '生抽', amount: '1勺' }, { name: '老抽', amount: '半勺' },
+        { name: '白糖', amount: '半勺' }, { name: '盐', amount: '适量' }
+      ],
+      steps: ['五花肉切薄片，杏鲍菇切片，小米辣切圈，姜蒜切末。', '锅少油下五花肉，中火煸炒至出油微焦。', '下姜蒜末和小米辣炒香，加老抽上色。', '下杏鲍菇大火翻炒至水分收干变软。', '加生抽、白糖和盐炒匀，下蒜苗炒断生出锅。']
+    },
+    {
+      id: 'huluobo-wuhuarou', name: '胡萝卜五花肉', emoji: '🥕', category: '荤菜', difficulty: 1, minutes: 25, servings: 2,
+      tags: ['下饭', '微辣'],
+      ingredients: [
+        { name: '五花肉', amount: '200g' }, { name: '胡萝卜', amount: '2根' },
+        { name: '大蒜', amount: '3瓣' }, { name: '小葱', amount: '1根' },
+        { name: '生抽', amount: '1勺' }, { name: '白糖', amount: '半勺' }, { name: '盐', amount: '适量' }
+      ],
+      steps: ['五花肉切薄片，胡萝卜去皮切片，蒜切片。', '锅少油下五花肉，中火煸炒至出油微黄。', '下蒜片炒香，下胡萝卜片翻炒，加小半碗水盖盖焖3分钟。', '开盖加生抽、白糖和盐炒匀，撒葱花出锅。']
+    },
 
     // ============ 水产 ============
     {
@@ -563,6 +631,29 @@
         { name: '生抽', amount: '1勺' }, { name: '淀粉', amount: '1勺' }
       ],
       steps: ['油菜、香菇分别焯水。', '爆香蒜末，下香菇炒香。', '下油菜，加蚝油、生抽炒匀。', '淀粉加水勾薄芡。']
+    },
+    {
+      id: 'su-dongguapian', name: '素冬瓜片', emoji: '🥬', category: '素菜', difficulty: 1, minutes: 15, servings: 2,
+      tags: ['快手', '清淡'],
+      ingredients: [
+        { name: '冬瓜', amount: '400g' }, { name: '大蒜', amount: '3瓣' },
+        { name: '小葱', amount: '1根' }, { name: '生抽', amount: '1勺' },
+        { name: '蚝油', amount: '1勺' }, { name: '盐', amount: '适量' },
+        { name: '食用油', amount: '1勺' }
+      ],
+      steps: ['冬瓜去皮去瓤，切约4毫米厚的片，蒜切片。', '热油爆香蒜片，下冬瓜片翻炒至微微变软。', '加生抽、蚝油和少许盐炒匀，加半碗水盖盖焖3分钟。', '大火收汁，撒葱花出锅。']
+    },
+    {
+      id: 'shaojiao-qiezi', name: '烧椒茄子', emoji: '🍆', category: '凉菜', difficulty: 1, minutes: 20, servings: 2,
+      tags: ['快手', '凉菜', '微辣', '下饭'],
+      ingredients: [
+        { name: '茄子', amount: '2个' }, { name: '青椒', amount: '3个' },
+        { name: '大蒜', amount: '4瓣' }, { name: '小米辣', amount: '1个', optional: true },
+        { name: '生抽', amount: '2勺' }, { name: '醋', amount: '1勺' },
+        { name: '白糖', amount: '半勺' }, { name: '花椒粉', amount: '半勺' },
+        { name: '芝麻油', amount: '半勺' }, { name: '小葱', amount: '1根' }, { name: '盐', amount: '适量' }
+      ],
+      steps: ['茄子切段，大火蒸10分钟至筷子能戳穿，晾凉后手撕成条装盘。', '青椒去蒂，干锅小火煸至表皮起虎皮、变软，取出和蒜末一起剁碎。', '烧椒碎加生抽、醋、白糖、花椒粉、芝麻油和盐调成料汁。', '料汁淋在茄子上，撒葱花拌匀即可。']
     },
 
     // ============ 汤羹 ============
