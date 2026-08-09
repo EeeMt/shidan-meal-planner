@@ -159,6 +159,9 @@
     const po = plan.opts || {};
     const fam = po.servings || familyTotal();
     const dinnerLimit = Math.round((Number(po.quickLimit) || 25) * 1.5);
+    const timeLimitText = state.settings.dinnerOnly
+      ? '晚餐 ≤' + dinnerLimit + '分钟'
+      : '午餐 ≤' + (Number(po.quickLimit) || 25) + '分钟 · 晚餐 ≤' + dinnerLimit + '分钟';
     const spiceText = (po.kidSpice === 'none') ? '孩子不辣'
       : (po.kidSpice === 'mild' ? '孩子微辣' : '孩子正常');
     $('#headerActions').innerHTML = '<button class="btn btn-sm" data-act="copy-plan">📋 复制计划</button>';
@@ -169,7 +172,7 @@
       '<div class="stat"><b>' + st.uniqueRecipes + '道</b><span>本周用到的菜</span></div>' +
       '<div class="stat"><b>' + missingCount + '种</b><span>需补食材</span></div>' +
       '</div>' +
-      '<div class="muted" style="margin:0 0 12px;font-size:13px;">👨‍👩‍👦 ' + (Number(po.adults) || 2) + ' 大人 + ' + (Number(po.kids) || 0) + ' 小孩（' + (Number(po.kidAge) || 5) + '岁 ≈ ' + (Number(po.kidPortion) || 0.5) + ' 成人份）≈ ' + fam + ' 人份 · 午餐 ≤' + (Number(po.quickLimit) || 25) + '分钟 · 晚餐 ≤' + dinnerLimit + '分钟 · 忌口：' + spiceText + '</div>' +
+      '<div class="muted" style="margin:0 0 12px;font-size:13px;">👨‍👩‍👦 ' + (Number(po.adults) || 2) + ' 大人 + ' + (Number(po.kids) || 0) + ' 小孩（' + (Number(po.kidAge) || 5) + '岁 ≈ ' + (Number(po.kidPortion) || 0.5) + ' 成人份）≈ ' + fam + ' 人份 · ' + timeLimitText + ' · 忌口：' + spiceText + '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">' +
       '<button class="btn btn-primary" data-act="regen-plan">🔄 重新生成</button>' +
       '<button class="btn" data-act="plan-missing-shopping">🛒 补缺采购清单</button>' +
@@ -184,12 +187,14 @@
   }
 
   function dayCard(day, dayIdx) {
-    const meals = [
-      { key: 'lunch', name: '午餐' },
-      { key: 'dinner', name: '晚餐' }
-    ];
+    const meals = [];
+    if (!state.settings.dinnerOnly) meals.push({ key: 'lunch', name: '午餐' });
+    meals.push({ key: 'dinner', name: '晚餐' });
+    const minutes = state.settings.dinnerOnly
+      ? (day.dinner ? day.dinner.totalMinutes : 0)
+      : (day.lunch && day.dinner ? day.lunch.totalMinutes + day.dinner.totalMinutes : 0);
     return '<div class="card day-card">' +
-      '<div class="day-head"><span>' + esc(day.label) + '</span><span class="sub">' + (day.lunch && day.dinner ? '共' + (day.lunch.totalMinutes + day.dinner.totalMinutes) + '分钟' : '') + '</span></div>' +
+      '<div class="day-head"><span>' + esc(day.label) + '</span><span class="sub">' + (minutes ? '共' + minutes + '分钟' : '') + '</span></div>' +
       '<div class="day-body">' +
       meals.map(function (m) { return mealCard(day, m.key, m.name, dayIdx); }).join('') +
       '</div></div>';
@@ -924,15 +929,19 @@
       '<div class="muted">生成计划时按“全家”和“小孩”中更严格的一档筛选；辣度标注：🌶️ 微辣、🌶️🌶️ 辣。</div>' +
       '</div>' +
       '<div class="card"><div class="card-title">⚙️ 计划偏好</div>' +
-      '<div class="setting-row"><div><div class="lbl">每周天数</div><div class="hint">生成几天的午餐和晚餐</div></div>' +
+      '<div class="setting-row"><div><div class="lbl">每周天数</div><div class="hint">' + (s.dinnerOnly ? '生成几天的晚餐' : '生成几天的午餐和晚餐') + '</div></div>' +
       '<select data-setting="days" data-num><option value="5"' + (Number(s.days) === 5 ? ' selected' : '') + '>5 天</option><option value="7"' + (Number(s.days) === 7 ? ' selected' : '') + '>7 天</option></select></div>' +
+      '<div class="setting-row"><div><div class="lbl">只计划晚餐</div><div class="hint">开启后每天只排晚餐（含配菜和汤），不排午餐</div></div>' +
+      '<label class="switch"><input type="checkbox" data-setting="dinnerOnly"' + (s.dinnerOnly ? ' checked' : '') + '><span class="slider"></span></label></div>' +
+      '<div class="setting-row"><div><div class="lbl">丰盛晚餐</div><div class="hint">晚餐排满两荤一素一汤，适合 3 人以上家庭</div></div>' +
+      '<label class="switch"><input type="checkbox" data-setting="richDinner"' + (s.richDinner ? ' checked' : '') + '><span class="slider"></span></label></div>' +
       '<div class="setting-row"><div><div class="lbl">快手优先</div><div class="hint">优先选总用时 ≤ ' + s.quickLimit + ' 分钟的菜</div></div>' +
       '<label class="switch"><input type="checkbox" data-setting="quick"' + (s.quick ? ' checked' : '') + '><span class="slider"></span></label></div>' +
       '<div class="setting-row"><div><div class="lbl">缺料容忍度</div><div class="hint">每道菜允许缺几种食材仍会被选中</div></div>' +
       '<select data-setting="maxMissing" data-num>' + [0, 1, 2, 3].map(function (n) {
         return '<option value="' + n + '"' + (Number(s.maxMissing) === n ? ' selected' : '') + '>' + n + ' 种</option>';
       }).join('') + '</select></div>' +
-      '<div class="setting-row"><div><div class="lbl">午餐快手上限（分钟）</div><div class="hint">晚餐自动放宽 50%（约 ' + dinnerLimit + ' 分钟）</div></div>' +
+      '<div class="setting-row"><div><div class="lbl">' + (s.dinnerOnly ? '快手基准（分钟）' : '午餐快手上限（分钟）') + '</div><div class="hint">' + (s.dinnerOnly ? '晚餐主菜按基准放宽 50%（约 ' + dinnerLimit + ' 分钟）' : '晚餐自动放宽 50%（约 ' + dinnerLimit + ' 分钟）') + '</div></div>' +
       '<input type="number" min="10" max="90" step="5" value="' + s.quickLimit + '" data-setting="quickLimit"></div>' +
       '</div>' +
       '<div class="card"><div class="card-title">💾 数据</div>' +
@@ -1122,13 +1131,13 @@
         toast('已按 ' + value + ' 岁调整饭量：约 ' + autoKidPortion(value) + ' 成人份');
         return;
       }
-      if (key === 'familySpice' || key === 'kidSpice') {
+      if (key === 'familySpice' || key === 'kidSpice' || key === 'dinnerOnly' || key === 'richDinner') {
         state.settings[key] = value;
         save();
         renderSettings();
         if (state.plan) {
           buildPlan();
-          toast('已保存，计划已按新忌口重新生成');
+          toast('已保存，计划已按新设置重新生成');
         } else {
           toast('已保存，生成计划时生效');
         }

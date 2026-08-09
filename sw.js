@@ -1,5 +1,5 @@
 /* 简易离线缓存：首次访问后，核心文件离线可用 */
-const CACHE = 'shidan-v7';
+const CACHE = 'shidan-v8';
 const ASSETS = [
   './',
   './index.html',

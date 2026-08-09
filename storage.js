@@ -37,7 +37,9 @@
       kidSpice: 'none',
       quick: true,
       maxMissing: 2,
-      quickLimit: 25
+      quickLimit: 25,
+      dinnerOnly: false,
+      richDinner: false
     };
     const saved = load('settings', {});
     const settings = Object.assign({}, defaults, saved);

@@ -379,17 +379,26 @@
       return false;
     }
 
-    // 保证每餐一荤一素：缺哪样补哪样
-    if (!proteinOk) {
-      const got = addSide(PROTEIN_CATS, sideLimit);
-      if (!got) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99);
-    }
-    if (!vegOk) {
-      const got = addSide(VEG_CATS, sideLimit);
-      if (!got) addSide(VEG_CATS.concat(PROTEIN_CATS, SOUP_CATS), 99);
-    }
-    if (proteinOk && vegOk && sides.length === 0) {
-      addSide(VEG_CATS, sideLimit);
+    // 丰盛晚餐：排满两个配菜位，组合出两荤一素
+    // （主菜缺啥补啥；配菜组合按主菜荤素推导，保证最终两荤一素）
+    if (opts.richDinner && mealType === 'dinner') {
+      const firstCats = proteinOk ? VEG_CATS : PROTEIN_CATS;
+      const secondCats = (proteinOk || vegOk) ? PROTEIN_CATS : VEG_CATS;
+      if (!addSide(firstCats, sideLimit)) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99);
+      if (!addSide(secondCats, sideLimit)) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99);
+    } else {
+      // 保证每餐一荤一素：缺哪样补哪样
+      if (!proteinOk) {
+        const got = addSide(PROTEIN_CATS, sideLimit);
+        if (!got) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99);
+      }
+      if (!vegOk) {
+        const got = addSide(VEG_CATS, sideLimit);
+        if (!got) addSide(VEG_CATS.concat(PROTEIN_CATS, SOUP_CATS), 99);
+      }
+      if (proteinOk && vegOk && sides.length === 0) {
+        addSide(VEG_CATS, sideLimit);
+      }
     }
 
     // 晚餐加汤（主菜本身是汤则不加）
@@ -433,13 +442,14 @@
       meal.dishes.forEach(function (d) { state.usedHistory.push(d.recipe.id); });
     }
 
+    const mealTypes = opts.dinnerOnly ? ['dinner'] : ['lunch', 'dinner'];
     for (let i = 0; i < opts.days; i++) {
       const date = addDays(opts.start, i);
       state.dayPlan = { lunch: null, dinner: null };
-      state.dayPlan.lunch = buildMeal(allRecipes, invSet, opts, i, 'lunch', state);
-      pushMeal(state.dayPlan.lunch);
-      state.dayPlan.dinner = buildMeal(allRecipes, invSet, opts, i, 'dinner', state);
-      pushMeal(state.dayPlan.dinner);
+      mealTypes.forEach(function (mealType) {
+        state.dayPlan[mealType] = buildMeal(allRecipes, invSet, opts, i, mealType, state);
+        pushMeal(state.dayPlan[mealType]);
+      });
 
       days.push({
         date: date,
