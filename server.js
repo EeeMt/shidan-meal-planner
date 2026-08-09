@@ -17,6 +17,18 @@ const MIME = {
   '.ico': 'image/x-icon'
 };
 
+function staticHeaders(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
+  // 文件名未带内容哈希；入口与 Worker 必须每次校验，才能可靠切换认证状态和应用版本。
+  if (path.basename(filePath) === 'sw.js') {
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+  } else if (ext === '.html' || ext === '.js' || ext === '.css' || ext === '.webmanifest') {
+    headers['Cache-Control'] = 'no-cache, must-revalidate';
+  }
+  return headers;
+}
+
 // 防 DNS rebinding：攻击者域名解析到家庭 IP 后可"同源"读取/覆写共享数据。
 // 放行 IP/localhost/单段主机名/*.local（家庭常见访问方式）；自定义域名需配 SHIDAN_HOSTS（逗号分隔）。
 function isTrustedHost(hostHeader) {
@@ -209,7 +221,7 @@ http.createServer(function (req, res) {
         res.end('404 Not Found');
         return;
       }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream' });
+      res.writeHead(200, staticHeaders(filePath));
       res.end(data);
     });
   });

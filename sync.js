@@ -13,6 +13,7 @@
   let pendingSnapshot = null; // 在途 PUT 期间产生的新快照，完成后补推
   let failureCount = 0;    // EventSource 连续失败次数
   let status = 'offline';
+  const FALLBACK_SYNC_MS = 30000;
 
   function loadRev() {
     try { return Number(S.load('rev', 0)) || 0; } catch (e) { return 0; }
@@ -195,7 +196,11 @@
     if (typeof cfg.onStatus === 'function') {
       try { cfg.onStatus(status); } catch (e) { /* 忽略 */ }
     }
-    connect();
+    // Proxy 链路中 SSE 可能延迟建立；不能把首次 HTTP 对账绑在 onopen 上，
+    // 否则 API 实际可用时页面仍会一直显示“离线”。SSE 保持实时推送，
+    // 定时对账则作为连接异常时的同步兜底。
+    fullSync().finally(connect);
+    setInterval(function () { fullSync(); }, FALLBACK_SYNC_MS);
   }
 
   window.Sync = {

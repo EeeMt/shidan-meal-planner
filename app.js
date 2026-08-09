@@ -1245,7 +1245,8 @@
   function init() {
     renderAll();
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* 离线功能不可用时静默 */ });
+      // 禁用 HTTP 缓存参与更新检查，避免 Authentik 会话恢复后仍继续使用旧 Worker。
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () { /* 离线功能不可用时静默 */ });
     }
     Sync.init({
       getState: syncSnapshot,

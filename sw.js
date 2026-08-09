@@ -1,33 +1,18 @@
 /* PWA 离线缓存：在线时 network-first（先访问网络，能及时发现新版本、进入 Authentik 登录流），
    仅网络不可用时才回退离线缓存；API 与 Authentik 响应绝不缓存 */
-const CACHE_NAME = 'shidan-v11';
-
-const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/recipes.js',
-  '/classifier.js',
-  '/core.js',
-  '/parser.js',
-  '/storage.js',
-  '/sync.js',
-  '/app.js',
-  '/manifest.webmanifest'
-];
+const CACHE_NAME = 'shidan-v12';
 
 self.addEventListener('install', function (event) {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(function (cache) {
-      return cache.addAll(APP_SHELL);
-    }).then(function () { return self.skipWaiting(); })
-  );
+  // sw.js 必须可在 Authentik 会话过期时更新；安装阶段不能预取受保护的
+  // 页面和脚本，否则登录重定向会使 cache.addAll() 失败并卡住旧 Worker。
+  // 用户认证后，运行时的 network-first 请求会逐步填充离线缓存。
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(
     caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (k) { return k !== CACHE_NAME; }).map(function (k) { return caches.delete(k); }));
+      return Promise.all(keys.filter(function (k) { return k.indexOf('shidan-') === 0 && k !== CACHE_NAME; }).map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); })
   );
 });
