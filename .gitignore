@@ -12,3 +12,6 @@ desktop.ini
 *.local.json
 data/
 tmp/
+
+# 技能评估工作区(测试产物)
+.claude/skills/add-recipe-workspace/

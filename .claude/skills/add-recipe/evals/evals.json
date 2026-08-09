@@ -1,0 +1,68 @@
+{
+  "skill_name": "add-recipe",
+  "evals": [
+    {
+      "id": 1,
+      "name": "shuizhu-roupian-jiachang",
+      "prompt": "帮我添加水煮肉片菜谱,用家常做法就行",
+      "expected_output": "联网搜索水煮肉片做法,展示 2~3 种变体后按家常版录入 recipes.js:category 荤菜、tags 含微辣、食材含用量、4~6 步、id 为拼音连字符、node --check 通过",
+      "files": [],
+      "expectations": [
+        "菜谱已录入 recipes.js(按菜名找到新菜)",
+        "id 符合拼音连字符格式(小写+连字符)",
+        "category 为合法分类之一(荤菜/素菜/蛋豆/水产/汤羹/主食/凉菜)",
+        "difficulty 为 1~3 的整数",
+        "minutes 为正整数",
+        "食材≥4 种且每项含 name 和 amount",
+        "steps≥3 条",
+        "新 id 与库中已有 id 不冲突",
+        "原有 64 道内置菜谱均未被动过",
+        "node --check recipes.js 语法通过",
+        "category 为荤菜",
+        "tags 含微辣(默认家常川菜微辣)",
+        "展示了 2~3 种做法变体(variants.md 中存在)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "mayi-shangshu-default",
+      "prompt": "添加蚂蚁上树菜谱",
+      "expected_output": "用户未指定偏好:搜索并展示 2~3 种变体,默认按家常做法+微辣录入 recipes.js,数据结构完整有效,node --check 通过",
+      "files": [],
+      "expectations": [
+        "菜谱已录入 recipes.js(按菜名找到新菜)",
+        "id 符合拼音连字符格式(小写+连字符)",
+        "category 为合法分类之一(荤菜/素菜/蛋豆/水产/汤羹/主食/凉菜)",
+        "difficulty 为 1~3 的整数",
+        "minutes 为正整数",
+        "食材≥4 种且每项含 name 和 amount",
+        "steps≥3 条",
+        "新 id 与库中已有 id 不冲突",
+        "原有 64 道内置菜谱均未被动过",
+        "node --check recipes.js 语法通过",
+        "tags 含微辣(用户未说明时默认微辣)",
+        "展示了 2~3 种做法变体(variants.md 中存在)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "maoxuewang-override",
+      "prompt": "添加毛血旺菜谱,辣度要正常,不要微辣",
+      "expected_output": "识别用户对默认值的覆盖:tags 不含微辣,其余字段符合数据结构,node --check 通过",
+      "files": [],
+      "expectations": [
+        "菜谱已录入 recipes.js(按菜名找到新菜)",
+        "id 符合拼音连字符格式(小写+连字符)",
+        "category 为合法分类之一(荤菜/素菜/蛋豆/水产/汤羹/主食/凉菜)",
+        "difficulty 为 1~3 的整数",
+        "minutes 为正整数",
+        "食材≥4 种且每项含 name 和 amount",
+        "steps≥3 条",
+        "新 id 与库中已有 id 不冲突",
+        "原有 64 道内置菜谱均未被动过",
+        "node --check recipes.js 语法通过",
+        "tags 不含微辣(用户覆盖默认值生效)"
+      ]
+    }
+  ]
+}
