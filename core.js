@@ -2,19 +2,20 @@
  * 纯函数模块，浏览器和 Node 均可运行。
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.MealCore = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./classifier.js'));
+  else root.MealCore = factory(root.MealClassify);
+})(typeof self !== 'undefined' ? self : this, function (MealClassify) {
   'use strict';
 
   const SIDE_CATS = ['素菜', '凉菜'];
   const SOUP_CATS = ['汤羹'];
   const MAIN_CATS = ['荤菜', '水产', '蛋豆', '主食', '素菜', '汤羹'];
-  const PROTEIN_CATS = ['荤菜', '水产', '蛋豆'];
+  // 荤素/蛋白判断统一委托 classifier.js（食材语义词典，含川菜味型与“假荤”处理）
+  const PROTEIN_CATS = MealClassify.CATEGORY_PROTEIN; // 有蛋白质来源的分类
+  const MEAT_CATS = MealClassify.CATEGORY_MEAT;       // 荤菜分类（兜底）
   const VEG_CATS = ['素菜', '凉菜'];
   const DAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   const WEEKDAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const PROTEIN_ING_RE = /蛋|肉|虾|鱼|鸡|牛|羊|火腿|排骨|培根|腊肠|香肠|丸子/;
 
   // 可互相替代的食材组（“缺 A 时，库存里有同组 B 就推荐 B”）
   const SUBSTITUTE_GROUPS = [
@@ -125,14 +126,29 @@
     return DAY_NAMES[d.getDay()] + ' ' + formatDate(d);
   }
 
-  // 是否算“荤”（含蛋豆等蛋白质来源；主食类看是否含蛋/肉）
+  // 是否荤菜（家常口径，委托 classifier.js：必备配料含肉/禽/水产/加工肉为荤；
+  // 蛋、豆腐、菌菇等算素；高汤、猪油等灰区默认不计）
+  function isMeat(recipe) {
+    return MealClassify.classifyDish(recipe).isMeat;
+  }
+
+  // 是否有蛋白质来源（荤 + 蛋 + 豆腐豆制品 + 干豆；肉末可选的家常菜按素计）
   function hasProtein(recipe) {
-    if (PROTEIN_CATS.indexOf(recipe.category) !== -1) return true;
-    return (recipe.ingredients || []).some(function (i) { return PROTEIN_ING_RE.test(i.name); });
+    return MealClassify.classifyDish(recipe).hasProtein;
   }
 
   function isVegetable(recipe) {
     return VEG_CATS.indexOf(recipe.category) !== -1;
+  }
+
+  // 荤/素配菜池筛选：荤位只留荤菜，素位只留素菜
+  // （番茄炒蛋、家常豆腐这类蛋/豆腐菜是素，可当素配菜；肉汤不进素位）
+  function meatSideFilter(r) {
+    return isMeat(r);
+  }
+
+  function vegSideFilter(r) {
+    return !isMeat(r);
   }
 
   // 辣度：0 不辣 / 1 微辣 / 2 辣
@@ -290,8 +306,10 @@
   }
 
   // 为某一餐挑选配菜
-  function pickSides(recipes, invSet, opts, constraints, count, cats) {
-    const pool = recipes.filter(function (r) { return cats.indexOf(r.category) !== -1; });
+  function pickSides(recipes, invSet, opts, constraints, count, cats, filter) {
+    const pool = recipes.filter(function (r) {
+      return cats.indexOf(r.category) !== -1 && (!filter || filter(r));
+    });
     let ranked = rankRecipes(pool, invSet, { maxMissing: opts.maxMissing, maxSpice: opts.maxSpice });
     if (!ranked.length && opts.maxMissing < 99) {
       ranked = rankRecipes(pool, invSet, { maxMissing: 99, maxSpice: opts.maxSpice });
@@ -301,13 +319,21 @@
     }
     const picked = [];
     const localUsed = new Set(constraints.usedIds);
-    for (let i = 0; i < count; i++) {
-      const c = pickBest(ranked, {
+    const sideConstraints = function () {
+      return {
         excludeIds: new Set([constraints.mainId, ...constraints.excludeIds, ...picked.map(function (p) { return p.recipe.id; })]),
         usedIds: localUsed,
         quick: opts.quick,
         quickLimit: 20
-      });
+      };
+    };
+    for (let i = 0; i < count; i++) {
+      let c = pickBest(ranked, sideConstraints());
+      if (!c && opts.maxMissing < 99) {
+        // 低缺料的候选被近餐占用时，放宽缺料限制重选，保证配菜位有菜
+        ranked = rankRecipes(pool, invSet, { maxMissing: 99, maxSpice: 2 });
+        c = pickBest(ranked, sideConstraints());
+      }
       if (!c) break;
       picked.push(c);
       localUsed.add(c.recipe.id);
@@ -355,8 +381,9 @@
     if (!main) return null;
 
     const mainR = main.recipe;
-    const proteinOk = hasProtein(mainR);
-    const vegOk = isVegetable(mainR);
+    const proteinOk = hasProtein(mainR); // 主菜是否有蛋白质来源
+    const meatOk = isMeat(mainR);        // 主菜是否荤（常识口径：豆腐算素）
+    const vegOk = isVegetable(mainR);    // 主菜是否素菜/凉菜类
     const sideLimit = mealType === 'lunch' ? Math.min(15, opts.quickLimit) : 20;
     const soupLimit = mealType === 'lunch' ? 15 : 25;
     const sideUsed = new Set(usedIds);
@@ -364,13 +391,13 @@
     const sides = [];
     const soups = [];
 
-    function addSide(cats, limit) {
+    function addSide(cats, limit, filter) {
       const picked = pickSides(recipes, invSet, Object.assign({}, opts, { quickLimit: limit }), {
         mainId: mainR.id,
         usedIds: sideUsed,
         excludeIds: [],
         quick: opts.quick
-      }, 1, cats);
+      }, 1, cats, filter);
       if (picked.length) {
         sides.push(picked[0]);
         sideUsed.add(picked[0].recipe.id);
@@ -380,24 +407,25 @@
     }
 
     // 丰盛晚餐：排满两个配菜位，组合出两荤一素
-    // （主菜缺啥补啥；配菜组合按主菜荤素推导，保证最终两荤一素）
+    // （主菜缺啥补啥；配菜组合按主菜荤素推导。荤按家常口径：蛋、豆腐均不算荤，
+    //   故番茄炒蛋、香煎豆腐这类主菜的两荤一素实为“两素一荤”）
     if (opts.richDinner && mealType === 'dinner') {
       const firstCats = proteinOk ? VEG_CATS : PROTEIN_CATS;
       const secondCats = (proteinOk || vegOk) ? PROTEIN_CATS : VEG_CATS;
-      if (!addSide(firstCats, sideLimit)) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99);
-      if (!addSide(secondCats, sideLimit)) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99);
+      const firstFilter = firstCats === VEG_CATS ? vegSideFilter : meatSideFilter;
+      const secondFilter = secondCats === VEG_CATS ? vegSideFilter : meatSideFilter;
+      if (!addSide(firstCats, sideLimit, firstFilter)) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99, firstFilter);
+      if (!addSide(secondCats, sideLimit, secondFilter)) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99, secondFilter);
     } else {
-      // 保证每餐一荤一素：缺哪样补哪样
-      if (!proteinOk) {
-        const got = addSide(PROTEIN_CATS, sideLimit);
-        if (!got) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99);
-      }
-      if (!vegOk) {
-        const got = addSide(VEG_CATS, sideLimit);
-        if (!got) addSide(VEG_CATS.concat(PROTEIN_CATS, SOUP_CATS), 99);
-      }
-      if (proteinOk && vegOk && sides.length === 0) {
-        addSide(VEG_CATS, sideLimit);
+      // 保证每餐一荤一素（常识口径）：主菜缺荤补荤（荤菜/水产/含蛋肉的蛋豆）、缺素补素
+      if (!meatOk) {
+        const got = addSide(PROTEIN_CATS, sideLimit, meatSideFilter);
+        if (!got) addSide(PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS), 99, meatSideFilter);
+      } else if (!vegOk) {
+        const got = addSide(VEG_CATS, sideLimit, vegSideFilter);
+        if (!got) addSide(VEG_CATS.concat(PROTEIN_CATS, SOUP_CATS), 99, vegSideFilter);
+      } else if (proteinOk && sides.length === 0) {
+        addSide(VEG_CATS, sideLimit, vegSideFilter);
       }
     }
 
@@ -630,7 +658,7 @@
         lines.push('—— ' + title + '（约' + meal.totalMinutes + '分钟）——');
         meal.dishes.forEach(function (dish) {
           const role = meal.soups.indexOf(dish) !== -1 ? '汤'
-            : (isVegetable(dish.recipe) ? '素' : (dish.recipe.category === '主食' ? '主' : '荤'));
+            : (dish.recipe.category === '主食' ? '主' : (isMeat(dish.recipe) ? '荤' : '素'));
           lines.push('• [' + role + '] ' + dish.recipe.emoji + ' ' + dish.recipe.name + '（' + dish.recipe.minutes + '分钟）');
           if (dish.missing && dish.missing.length) {
             lines.push('  需补：' + dish.missing.map(function (x) { return x.name + ' ' + x.amount; }).join('、'));
@@ -655,7 +683,9 @@
     SOUP_CATS: SOUP_CATS,
     MAIN_CATS: MAIN_CATS,
     PROTEIN_CATS: PROTEIN_CATS,
+    MEAT_CATS: MEAT_CATS,
     VEG_CATS: VEG_CATS,
+    isMeat: isMeat,
     hasProtein: hasProtein,
     isVegetable: isVegetable,
     spiceLevel: spiceLevel,

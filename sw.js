@@ -1,10 +1,11 @@
 /* 简易离线缓存：首次访问后，核心文件离线可用 */
-const CACHE = 'shidan-v9';
+const CACHE = 'shidan-v10';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './recipes.js',
+  './classifier.js',
   './core.js',
   './parser.js',
   './storage.js',

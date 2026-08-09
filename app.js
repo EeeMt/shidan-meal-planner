@@ -148,10 +148,9 @@
 
   function dishRole(dish, meal) {
     if (meal.soups.indexOf(dish) !== -1) return '汤';
-    const cat = dish.recipe.category;
-    if (cat === '素菜' || cat === '凉菜') return '素';
-    if (cat === '主食') return '主';
-    return '荤';
+    if (dish.recipe.category === '主食') return '主';
+    // 荤素按常识口径：必备配料含动物性食材为荤、豆腐算素（与 core.isMeat 一致）
+    return C.isMeat(dish.recipe) ? '荤' : '素';
   }
 
   function spiceValue(name) {
