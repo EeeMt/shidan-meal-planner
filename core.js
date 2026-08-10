@@ -592,7 +592,7 @@
         const preferCats = mealType === 'lunch'
           ? ['荤菜', '水产', '蛋豆', '主食']
           : ['荤菜', '水产', '蛋豆'];
-        // 荤主菜换荤、素主菜换素；主食主菜只换主食、素主菜不得换成主食
+        // 荤主菜换荤、素主菜换素（不得换成主食或汤）；主食主菜只换主食
         const oldIsStaple = oldR.category === '主食';
         return pickMain(recipes, invSet, opts, {
           excludeIds: new Set([oldR.id].concat(sameDayMainId ? [sameDayMainId] : [], extra || [])),
@@ -603,7 +603,7 @@
           quickLimit: mealType === 'lunch' ? opts.quickLimit : Math.round(opts.quickLimit * 1.5),
           meatReq: isMeat(oldR),
           onlyCats: oldIsStaple ? ['主食'] : null,
-          banCats: (!oldIsStaple && !isMeat(oldR)) ? ['主食'] : null
+          banCats: (!oldIsStaple && !isMeat(oldR)) ? ['主食', '汤羹'] : null
         });
       }
       const isSoup = slotType === 'soup';
@@ -686,7 +686,10 @@
         meal.dishes.forEach(function (dish) {
           if (dish && dish.recipe) dish.missing = matchRecipe(dish.recipe, invSet).missing;
         });
-        meal.missing = mealMissing(meal.main, meal.sides.concat(meal.soups), servings);
+        // dishes = [main, ...sides, ...soups]。经 localStorage/同步 JSON 往返后
+        // main/sides/soups 与 dishes 元素不是同一引用，聚合必须基于 dishes 本身，
+        // 否则 mealMissing 读到的是未刷新的旧 missing（原 bug：改库存后缺失不更新）
+        meal.missing = mealMissing(meal.dishes[0], meal.dishes.slice(1), servings);
       });
     });
     plan.stats = computeStats(plan.days);

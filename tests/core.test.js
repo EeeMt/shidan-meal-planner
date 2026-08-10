@@ -203,22 +203,31 @@ for (let d = 0; d < 7; d++) {
 }
 ok('换菜类型·荤换荤素换素汤换汤（全周主菜/配菜/汤槽）', typeFlip === 0 && typeSoup === 0);
 
-// 午餐主菜槽：素主菜不得换成主食，主食主菜只换主食
+// 午餐/晚餐主菜槽：同一槽位连续换 6 次，荤主菜保持荤，素主菜不得换成主食/汤/荤，主食只换主食
+// （原 bug：单次换菜正常，连续换多次后候选耗尽，素主菜被换成汤羹/主食）
 let stapleFlip = 0;
 for (let d = 0; d < 7; d++) {
   const p = core.planWeek(R, typeInv, typeOpts);
-  const lunch = p.days[d].lunch;
-  if (!lunch) continue;
-  const old = lunch.main.recipe;
-  const oldMeat = core.isMeat(old);
-  if (core.replaceDish(p, R, typeInv, typeOpts, d, 'lunch', 0)) {
-    const now = lunch.main.recipe;
-    if (oldMeat) { if (core.isMeat(now) !== oldMeat) stapleFlip++; }
-    else if (old.category === '主食') { if (now.category !== '主食') stapleFlip++; }
-    else if (now.category === '主食' || core.isMeat(now)) stapleFlip++;
-  }
+  ['lunch', 'dinner'].forEach(function (m) {
+    const meal = p.days[d][m];
+    if (!meal) return;
+    const old = meal.main.recipe;
+    const oldMeat = core.isMeat(old);
+    const oldStaple = old.category === '主食';
+    const recent = [];
+    for (let i = 0; i < 6; i++) {
+      const beforeId = meal.main.recipe.id;
+      core.replaceDish(p, R, typeInv, typeOpts, d, m, 0, recent);
+      recent.unshift(beforeId);
+      if (recent.length > 3) recent.length = 3;
+      const now = meal.main.recipe;
+      if (oldMeat && !core.isMeat(now)) stapleFlip++;
+      if (oldStaple && now.category !== '主食') stapleFlip++;
+      if (!oldMeat && !oldStaple && (core.isMeat(now) || now.category === '主食' || now.category === '汤羹')) stapleFlip++;
+    }
+  });
 }
-ok('换菜类型·午餐素主菜不换主食、主食主菜只换主食', stapleFlip === 0);
+ok('换菜类型·主菜槽连续换 6 次：荤保持荤、素不换主食/汤、主食只换主食', stapleFlip === 0);
 
 // ============ 9. 库存变化后刷新缺料：菜不变，缺失与统计重算 ============
 // 原 bug：计划里的 meal.missing / stats.missing 是生成时算好的，改库存后不重算，卡片显示旧缺失
@@ -252,6 +261,18 @@ ok('缺料刷新·菜谱结构不变（只重算缺失）', JSON.stringify(refId
 // 清空库存再刷新 → 缺失恢复
 core.refreshPlanMissing(refPlan, [], 2.5);
 ok('缺料刷新·清空库存后缺失恢复', refPlan.stats.missing.length === missingBefore);
+
+// JSON 往返后的 plan（浏览器真实形态：localStorage/同步序列化会切断 main/sides 与 dishes 的引用）
+// 原 bug：只更新了 dishes 元素的 missing，聚合 meal.missing 时却读到 main/sides 的旧引用
+const roundTrip = JSON.parse(JSON.stringify(refPlan));
+core.refreshPlanMissing(roundTrip, Array.from(new Set(need)), 2.5);
+const rtCovered = roundTrip.days.every(function (d) {
+  return ['lunch', 'dinner'].every(function (m) {
+    const meal = d[m];
+    return !meal || meal.missing.length === 0;
+  });
+});
+ok('缺料刷新·JSON 往返后刷新仍有效（引用断裂场景）', rtCovered && roundTrip.stats.missing.length === 0);
 
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);

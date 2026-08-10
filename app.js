@@ -1187,7 +1187,7 @@
         }
         case 'remove-inv': removeInventory(target.dataset.name); return;
         case 'clear-inv':
-          if (window.confirm('清空库存？')) { state.inventory = []; save(); renderAll(); toast('库存已清空'); }
+          if (window.confirm('清空库存？')) { state.inventory = []; refreshPlanMissing(); save(); renderAll(); toast('库存已清空'); }
           return;
         case 'copy-shopping': copyText(C.shoppingText(state.shopping.items), '清单已复制'); return;
         case 'clear-checked': clearChecked(); return;

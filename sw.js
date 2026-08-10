@@ -1,6 +1,6 @@
 /* PWA 离线缓存：在线时 network-first（先访问网络，能及时发现新版本、进入 Authentik 登录流），
    仅网络不可用时才回退离线缓存；API 与 Authentik 响应绝不缓存 */
-const CACHE_NAME = 'shidan-v19';
+const CACHE_NAME = 'shidan-v20';
 
 self.addEventListener('install', function (event) {
   // sw.js 必须可在 Authentik 会话过期时更新；安装阶段不能预取受保护的
