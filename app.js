@@ -159,9 +159,10 @@
     return 2;
   }
 
-  // 全家和孩子同时满足的辣度上限
+  // 全家和孩子同时满足的辣度上限；小孩人数为 0 时只看全家
   function maxSpice() {
     const s = state.settings;
+    if ((Number(s.kids) || 0) <= 0) return spiceValue(s.familySpice);
     return Math.min(spiceValue(s.familySpice), spiceValue(s.kidSpice));
   }
 
@@ -211,8 +212,10 @@
     const timeLimitText = state.settings.dinnerOnly
       ? '晚餐 ≤' + dinnerLimit + '分钟'
       : '午餐 ≤' + (Number(po.quickLimit) || 25) + '分钟 · 晚餐 ≤' + dinnerLimit + '分钟';
-    const spiceText = (po.kidSpice === 'none') ? '孩子不辣'
-      : (po.kidSpice === 'mild' ? '孩子微辣' : '孩子正常');
+    const hasKids = (Number(po.kids) || 0) > 0;
+    const spiceText = hasKids
+      ? (po.kidSpice === 'none' ? '孩子不辣' : (po.kidSpice === 'mild' ? '孩子微辣' : '孩子正常'))
+      : (po.familySpice === 'none' ? '全家不辣' : (po.familySpice === 'mild' ? '全家微辣' : '全家正常'));
     $('#headerActions').innerHTML = '<button class="btn btn-sm" data-act="copy-plan">📋 复制计划</button>';
 
     panel.innerHTML =
@@ -221,7 +224,7 @@
       '<div class="stat"><b>' + st.uniqueRecipes + '道</b><span>本周用到的菜</span></div>' +
       '<div class="stat"><b>' + missingCount + '种</b><span>需补食材</span></div>' +
       '</div>' +
-      '<div class="muted" style="margin:0 0 12px;font-size:13px;">👨‍👩‍👦 ' + (Number(po.adults) || 2) + ' 大人 + ' + (Number(po.kids) || 0) + ' 小孩（' + (Number(po.kidAge) || 5) + '岁 ≈ ' + (Number(po.kidPortion) || 0.5) + ' 成人份）≈ ' + fam + ' 人份 · ' + timeLimitText + ' · 忌口：' + spiceText + '</div>' +
+      '<div class="muted" style="margin:0 0 12px;font-size:13px;">👨‍👩‍👦 ' + (hasKids ? (Number(po.adults) || 2) + ' 大人 + ' + (Number(po.kids) || 0) + ' 小孩（' + (Number(po.kidAge) || 5) + '岁 ≈ ' + (Number(po.kidPortion) || 0.5) + ' 成人份）' : (Number(po.adults) || 2) + ' 大人') + ' ≈ ' + fam + ' 人份 · ' + timeLimitText + ' · 忌口：' + spiceText + '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">' +
       '<button class="btn btn-primary" data-act="regen-plan">🔄 重新生成</button>' +
       '<button class="btn" data-act="plan-missing-shopping">🛒 补缺采购清单</button>' +
@@ -997,7 +1000,7 @@
       '<input type="number" min="1" max="18" value="' + (Number(s.kidAge) || 5) + '" data-setting="kidAge"></div>' +
       '<div class="setting-row"><div><div class="lbl">小孩饭量</div><div class="hint">' + (Number(s.kidAge) || 5) + ' 岁建议约 ' + ratio + ' 成人份，可手动微调</div></div>' +
       '<input type="range" min="0.2" max="1.2" step="0.05" value="' + (Number(s.kidPortion) || ratio) + '" data-setting="kidPortion" style="width:130px;flex:none;"></div>' +
-      '<div class="muted" style="padding-top:10px;border-top:1px solid var(--gray-100);">全家合计约 <b>' + fam + '</b> 人份（' + (Number(s.adults) || 2) + ' 成人 + ' + (Number(s.kids) || 0) + ' 小孩 × ' + (Number(s.kidPortion) || ratio) + '）</div>' +
+      '<div class="muted" style="padding-top:10px;border-top:1px solid var(--gray-100);">全家合计约 <b>' + fam + '</b> 人份（' + (Number(s.adults) || 2) + ' 成人' + (((Number(s.kids) || 0) > 0) ? ' + ' + (Number(s.kids) || 0) + ' 小孩 × ' + (Number(s.kidPortion) || ratio) : '') + '）</div>' +
       '</div>' +
       '<div class="card"><div class="card-title">🚫 忌口</div>' +
       '<div class="setting-row"><div><div class="lbl">全家辣度</div><div class="hint">微辣只保留“微辣/不辣”的菜</div></div>' +
@@ -1006,13 +1009,13 @@
       '<option value="mild"' + (s.familySpice === 'mild' ? ' selected' : '') + '>微辣</option>' +
       '<option value="none"' + (s.familySpice === 'none' ? ' selected' : '') + '>不辣</option>' +
       '</select></div>' +
-      '<div class="setting-row"><div><div class="lbl">小孩辣度</div><div class="hint">孩子不吃辣就选“不辣”</div></div>' +
+      '<div class="setting-row"><div><div class="lbl">小孩辣度</div><div class="hint">孩子不吃辣就选“不辣”；小孩人数为 0 时忽略此项</div></div>' +
       '<select data-setting="kidSpice">' +
       '<option value="none"' + (s.kidSpice === 'none' ? ' selected' : '') + '>不辣</option>' +
       '<option value="mild"' + (s.kidSpice === 'mild' ? ' selected' : '') + '>微辣</option>' +
       '<option value="normal"' + (s.kidSpice === 'normal' ? ' selected' : '') + '>正常</option>' +
       '</select></div>' +
-      '<div class="muted">生成计划时按“全家”和“小孩”中更严格的一档筛选；辣度标注：🌶️ 微辣、🌶️🌶️ 辣。</div>' +
+      '<div class="muted">生成计划时按“全家”和“小孩”中更严格的一档筛选（小孩人数为 0 时只看全家）；辣度标注：🌶️ 微辣、🌶️🌶️ 辣。</div>' +
       '</div>' +
       '<div class="card"><div class="card-title">⚙️ 计划偏好</div>' +
       '<div class="setting-row"><div><div class="lbl">每周天数</div><div class="hint">' + (s.dinnerOnly ? '生成几天的晚餐' : '生成几天的午餐和晚餐') + '</div></div>' +
