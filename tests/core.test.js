@@ -4,6 +4,7 @@
  *   1. 内置菜谱库整周计划：每顿晚餐都排满两荤一素一汤
  *   2. 主菜为荤 → 配菜一素一荤（菜池无蛋豆主菜）
  *   3. 主菜为素（蛋豆/素菜）→ 配菜两个都排荤，凑满两荤一素（菜池全是快手蛋豆主菜）
+ *   4. 换菜轮询回归：连续换菜不得在两菜之间来回
  */
 'use strict';
 const core = require('../core.js');
@@ -140,6 +141,38 @@ ok('无候选·过滤后无剩余候选（素配菜槽）前置成立', vegIdx >
 const filtBefore = dishIds(filtMeal);
 const filtRes = core.replaceDish(filtPlan, filtPool, [], swapOpts, 0, 'dinner', vegIdx);
 ok('无候选·换素配菜槽返回 null 且槽位不变', filtRes === null && sameIds(dishIds(filtMeal), filtBefore));
+
+// ============ 7. 换菜轮询回归：连续换菜不得在两菜之间来回 ============
+// 原 bug：候选池很大，但只排除当前菜，换出的菜立刻以第一名身份被换回，两菜死循环。
+// 修复：调用方把「近几轮换出的菜」经 extraExcludeIds 传入，候选真正轮转
+const rotOpts = { dinnerOnly: true, days: 1, servings: 3, maxMissing: 2, quick: true, quickLimit: 25 };
+const rotPlan = core.planWeek(R, [], rotOpts);
+const rotMeal = rotPlan.days[0].dinner;
+const rotIdx = rotMeal.dishes.indexOf(rotMeal.sides[0]); // 配菜在 dishes 中的下标（晚餐必有配菜）
+const seenDishes = [];
+const recent = []; // 模拟 app.js 的换菜记忆：换出的菜进队列
+for (let i = 0; i < 6; i++) {
+  const before = rotMeal.dishes[rotIdx].recipe.id;
+  core.replaceDish(rotPlan, R, [], rotOpts, 0, 'dinner', rotIdx, recent);
+  recent.unshift(before);
+  if (recent.length > 3) recent.length = 3;
+  seenDishes.push(rotMeal.dishes[rotIdx].recipe.id);
+}
+ok('换菜轮询·连续 6 次换菜出现至少 3 道不同菜（实际 ' + new Set(seenDishes).size + ' 道）',
+  new Set(seenDishes).size >= 3);
+
+// 整餐重排同样不得换回最初那餐
+const rotMealPlan = core.planWeek(R, [], rotOpts);
+const mealFirstIds = dishIds(rotMealPlan.days[0].dinner);
+let mealRecent = [];
+const r1 = core.replaceMeal(rotMealPlan, R, [], rotOpts, 0, 'dinner', mealRecent);
+if (r1) mealRecent = mealFirstIds.concat(mealRecent).slice(0, 6);
+const mealSecondIds = dishIds(rotMealPlan.days[0].dinner);
+const r2 = core.replaceMeal(rotMealPlan, R, [], rotOpts, 0, 'dinner', mealRecent);
+if (r2) mealRecent = mealSecondIds.concat(mealRecent.filter(function (id) { return mealSecondIds.indexOf(id) === -1; })).slice(0, 6);
+const mealThirdIds = dishIds(rotMealPlan.days[0].dinner);
+ok('整餐轮询·连续两次换餐后不回到最初那餐',
+  r1 !== null && r2 !== null && !sameIds(mealThirdIds, mealFirstIds));
 
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);

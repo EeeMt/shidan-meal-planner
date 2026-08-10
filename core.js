@@ -518,7 +518,8 @@
 
   // 替换某一餐里的某一个菜槽：只换该槽位，其余槽位不变
   // 返回 null 表示换不出候选（槽位保持原样），供 UI 提示「暂无其他可选」
-  function replaceDish(plan, recipes, inventory, opts, dayIndex, mealType, dishIndex) {
+  // extraExcludeIds：近几轮换出的菜（可选），排除它们让候选真正轮转，避免两菜之间来回换
+  function replaceDish(plan, recipes, inventory, opts, dayIndex, mealType, dishIndex, extraExcludeIds) {
     const day = plan.days[dayIndex];
     if (!day) return null;
     const meal = day[mealType];
@@ -573,20 +574,22 @@
       }
     }
 
-    let fresh = null;
-    if (slotType === 'main') {
-      const preferCats = mealType === 'lunch'
-        ? ['荤菜', '水产', '蛋豆', '主食']
-        : ['荤菜', '水产', '蛋豆'];
-      fresh = pickMain(recipes, invSet, opts, {
-        excludeIds: new Set([oldR.id].concat(sameDayMainId ? [sameDayMainId] : [])),
-        usedIds: mainUsed,
-        preferCats: preferCats,
-        avoidCats: avoidCats,
-        quick: opts.quick,
-        quickLimit: mealType === 'lunch' ? opts.quickLimit : Math.round(opts.quickLimit * 1.5)
-      });
-    } else {
+    // 先排除「近几轮换出的菜」再选，让候选轮转而不是两菜来回；
+    // 若候选被这些历史占满选不出，退回只排除当前菜，保证总能换出来
+    const doPick = function (extra) {
+      if (slotType === 'main') {
+        const preferCats = mealType === 'lunch'
+          ? ['荤菜', '水产', '蛋豆', '主食']
+          : ['荤菜', '水产', '蛋豆'];
+        return pickMain(recipes, invSet, opts, {
+          excludeIds: new Set([oldR.id].concat(sameDayMainId ? [sameDayMainId] : [], extra || [])),
+          usedIds: mainUsed,
+          preferCats: preferCats,
+          avoidCats: avoidCats,
+          quick: opts.quick,
+          quickLimit: mealType === 'lunch' ? opts.quickLimit : Math.round(opts.quickLimit * 1.5)
+        });
+      }
       const isSoup = slotType === 'soup';
       const limit = isSoup
         ? (mealType === 'lunch' ? 15 : 25)
@@ -596,11 +599,13 @@
       const picked = pickSides(recipes, invSet, Object.assign({}, opts, { quickLimit: limit }), {
         mainId: meal.main.recipe.id,
         usedIds: sideUsed,
-        excludeIds: [oldR.id],
+        excludeIds: [oldR.id].concat(extra || []),
         quick: opts.quick
       }, 1, cats, filter);
-      fresh = picked.length ? picked[0] : null;
-    }
+      return picked.length ? picked[0] : null;
+    };
+    let fresh = doPick(extraExcludeIds);
+    if (!fresh && extraExcludeIds && extraExcludeIds.length) fresh = doPick(null);
 
     if (!fresh) return null; // 换不出合适的菜则保持原样，null 供 UI 提示「暂无其他可选」
 
@@ -619,7 +624,8 @@
   }
 
   // 替换某一餐：保留之前的历史，只重选该餐
-  function replaceMeal(plan, recipes, inventory, opts, dayIndex, mealType) {
+  // extraExcludeIds：近几轮换出的菜（可选），避免换走后又立刻换回最初那餐
+  function replaceMeal(plan, recipes, inventory, opts, dayIndex, mealType, extraExcludeIds) {
     const usedBefore = [];
     for (let i = 0; i < dayIndex; i++) {
       ['lunch', 'dinner'].forEach(function (m) {
@@ -637,10 +643,15 @@
     const invSet = buildInventorySet(inventory);
     const old = day[mealType];
     if (old) old.dishes.forEach(function (d) { usedBefore.push(d.recipe.id); });
-    const fresh = buildMeal(recipes, invSet, opts, dayIndex, mealType, {
-      usedHistory: usedBefore,
-      dayPlan: { lunch: day.lunch, dinner: day.dinner }
-    });
+    const build = function (history) {
+      return buildMeal(recipes, invSet, opts, dayIndex, mealType, {
+        usedHistory: history,
+        dayPlan: { lunch: day.lunch, dinner: day.dinner }
+      });
+    };
+    let fresh = build(usedBefore.concat(extraExcludeIds || []));
+    // 近几轮换出的菜把候选占满时，退回纯历史重排，保证这一餐总能换出来
+    if (!fresh && extraExcludeIds && extraExcludeIds.length) fresh = build(usedBefore);
     if (!fresh) return null; // 重排不出这一餐则保持原样，null 供 UI 提示「暂无其他可选」
     day[mealType] = fresh;
     plan.stats = computeStats(plan.days);

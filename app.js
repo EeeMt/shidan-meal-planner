@@ -6,6 +6,9 @@
   const S = window.Storage;
   const state = S.loadState();
 
+  // 换菜记忆（仅内存，刷新即清）：同一槽位最近换出的菜，几轮内不再排回来，避免两菜来回轮询
+  const swapRecent = new Map();
+
   const CATEGORIES = ['全部', '荤菜', '素菜', '蛋豆', '水产', '汤羹', '主食', '凉菜'];
   const COMMON_GROUPS = [
     {
@@ -295,6 +298,7 @@
   }
 
   function buildPlan() {
+    swapRecent.clear(); // 计划整体重排，旧换菜记忆作废
     const opts = Object.assign({}, state.settings);
     opts.servings = familyTotal(state.settings);
     opts.maxSpice = maxSpice();
@@ -344,7 +348,14 @@
     const opts = Object.assign({}, state.settings);
     opts.servings = familyTotal(state.settings);
     opts.maxSpice = maxSpice();
-    const changed = C.replaceMeal(plan, enabledRecipes(), state.inventory, opts, Number(dayIdx), mealKey);
+    const key = dayIdx + '-' + mealKey;
+    const recent = swapRecent.get(key) || [];
+    const meal = plan.days[dayIdx] && plan.days[dayIdx][mealKey];
+    const oldIds = (meal && meal.dishes || []).map(function (d) { return d.recipe.id; });
+    const changed = C.replaceMeal(plan, enabledRecipes(), state.inventory, opts, Number(dayIdx), mealKey, recent);
+    if (changed && oldIds.length) {
+      swapRecent.set(key, oldIds.concat(recent.filter(function (id) { return oldIds.indexOf(id) === -1; })).slice(0, 6));
+    }
     save();
     renderAll();
     toast(changed ? '已重排这一餐' : '暂无其他可选');
@@ -356,7 +367,15 @@
     const opts = Object.assign({}, state.settings);
     opts.servings = familyTotal(state.settings);
     opts.maxSpice = maxSpice();
-    const changed = C.replaceDish(plan, enabledRecipes(), state.inventory, opts, Number(dayIdx), mealKey, Number(dishIdx));
+    const key = dayIdx + '-' + mealKey + '-' + dishIdx;
+    const recent = swapRecent.get(key) || [];
+    const meal = plan.days[dayIdx] && plan.days[dayIdx][mealKey];
+    const oldId = meal && meal.dishes[dishIdx] && meal.dishes[dishIdx].recipe
+      ? meal.dishes[dishIdx].recipe.id : null;
+    const changed = C.replaceDish(plan, enabledRecipes(), state.inventory, opts, Number(dayIdx), mealKey, Number(dishIdx), recent);
+    if (changed && oldId) {
+      swapRecent.set(key, [oldId].concat(recent.filter(function (id) { return id !== oldId; })).slice(0, 3));
+    }
     save();
     renderAll();
     toast(changed ? '已换一道菜' : '暂无其他可选');
