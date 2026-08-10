@@ -878,6 +878,12 @@
     return Array.from(set);
   }
 
+  // 库存变化后刷新一周计划的缺料信息（菜谱不变，只重算缺失），再保存渲染
+  function refreshPlanMissing() {
+    if (!state.plan) return;
+    C.refreshPlanMissing(state.plan, state.inventory, state.plan.opts && state.plan.opts.servings);
+  }
+
   function addInventory(name) {
     const n = String(name || '').trim().replace(/[，,]/g, ' ');
     if (!n) return;
@@ -889,6 +895,7 @@
       if (!invSet.has(key)) { state.inventory.push(one); invSet.add(key); added.push(one); }
     });
     if (added.length) {
+      refreshPlanMissing();
       save();
       renderAll();
       toast('已添加：' + added.join('、'));
@@ -929,6 +936,7 @@
     if (inventoryHasName(n)) {
       const removed = removeInventoryName(n);
       if (removed) {
+        refreshPlanMissing();
         save();
         renderAll();
         toast('已从库存移除：' + n);
@@ -940,6 +948,7 @@
 
   function removeInventory(name) {
     state.inventory = state.inventory.filter(function (x) { return x !== name; });
+    refreshPlanMissing();
     save();
     renderAll();
   }

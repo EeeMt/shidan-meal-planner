@@ -662,6 +662,24 @@
     return plan;
   }
 
+  // 库存变化后刷新整份计划的缺料信息：菜谱不变，只重算每道菜的缺失、每餐聚合与统计
+  function refreshPlanMissing(plan, inventory, servings) {
+    if (!plan || !Array.isArray(plan.days)) return plan;
+    const invSet = buildInventorySet(inventory);
+    plan.days.forEach(function (day) {
+      ['lunch', 'dinner'].forEach(function (mealType) {
+        const meal = day[mealType];
+        if (!meal || !Array.isArray(meal.dishes)) return;
+        meal.dishes.forEach(function (dish) {
+          if (dish && dish.recipe) dish.missing = matchRecipe(dish.recipe, invSet).missing;
+        });
+        meal.missing = mealMissing(meal.main, meal.sides.concat(meal.soups), servings);
+      });
+    });
+    plan.stats = computeStats(plan.days);
+    return plan;
+  }
+
   // ============ 购物清单聚合 ============
   const UNIT_ALIAS = {
     'g': 'g', '克': 'g', '公克': 'g', 'gram': 'g', 'grams': 'g',
@@ -818,6 +836,7 @@
     planWeek: planWeek,
     replaceMeal: replaceMeal,
     replaceDish: replaceDish,
+    refreshPlanMissing: refreshPlanMissing,
     aggregateShopping: aggregateShopping,
     shoppingText: shoppingText,
     planText: planText,

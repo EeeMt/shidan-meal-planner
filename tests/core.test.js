@@ -5,6 +5,7 @@
  *   2. 主菜为荤 → 配菜一素一荤（菜池无蛋豆主菜）
  *   3. 主菜为素（蛋豆/素菜）→ 配菜两个都排荤，凑满两荤一素（菜池全是快手蛋豆主菜）
  *   4. 换菜轮询回归：连续换菜不得在两菜之间来回
+ *   5. 库存变化后刷新缺料：菜不变，缺失与统计重算
  */
 'use strict';
 const core = require('../core.js');
@@ -201,6 +202,39 @@ for (let d = 0; d < 7; d++) {
   if (m.soups.length && core.replaceDish(p, R, typeInv, typeOpts, d, 'dinner', m.dishes.length - 1) && m.soups[0].recipe.category !== '汤羹') typeSoup++;
 }
 ok('换菜类型·荤换荤素换素汤换汤（全周主菜/配菜/汤槽）', typeFlip === 0 && typeSoup === 0);
+
+// ============ 9. 库存变化后刷新缺料：菜不变，缺失与统计重算 ============
+// 原 bug：计划里的 meal.missing / stats.missing 是生成时算好的，改库存后不重算，卡片显示旧缺失
+const refPlan = core.planWeek(R, [], { days: 2, servings: 2.5, quick: true, maxMissing: 2, quickLimit: 25, maxSpice: 2 });
+const refIds0 = refPlan.days.map(function (d) { return dishIds(d.dinner); });
+const missingBefore = refPlan.stats.missing.length;
+ok('缺料刷新·空库存计划有缺失', missingBefore > 0);
+
+// 用计划里所有菜的必备配料构造库存 → 刷新后应全部可做
+const need = [];
+refPlan.days.forEach(function (d) {
+  ['lunch', 'dinner'].forEach(function (m) {
+    const meal = d[m];
+    if (!meal) return;
+    meal.dishes.forEach(function (x) {
+      x.recipe.ingredients.forEach(function (i) { if (!i.optional) need.push(i.name); });
+    });
+  });
+});
+core.refreshPlanMissing(refPlan, Array.from(new Set(need)), 2.5);
+const allCovered = refPlan.days.every(function (d) {
+  return ['lunch', 'dinner'].every(function (m) {
+    const meal = d[m];
+    return !meal || (meal.missing.length === 0 && meal.dishes.every(function (x) { return (x.missing || []).length === 0; }));
+  });
+});
+const refIds1 = refPlan.days.map(function (d) { return dishIds(d.dinner); });
+ok('缺料刷新·库存补全后缺失归零', refPlan.stats.missing.length === 0 && allCovered);
+ok('缺料刷新·菜谱结构不变（只重算缺失）', JSON.stringify(refIds0) === JSON.stringify(refIds1));
+
+// 清空库存再刷新 → 缺失恢复
+core.refreshPlanMissing(refPlan, [], 2.5);
+ok('缺料刷新·清空库存后缺失恢复', refPlan.stats.missing.length === missingBefore);
 
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);
