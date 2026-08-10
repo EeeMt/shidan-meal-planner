@@ -238,6 +238,7 @@ main { padding: 14px 14px 20px; }
 }
 .dish-row .role { font-size: 11px; color: var(--gray-500); width: 26px; flex: none; }
 .dish-row.main-dish { font-weight: 600; }
+.dish-row .dish-swap { margin-left: auto; padding: 2px 8px; font-size: 12px; flex: none; }
 .dish-badge {
   font-size: 11px;
   color: var(--gray-500);

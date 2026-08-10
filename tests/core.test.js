@@ -74,5 +74,72 @@ planVegMain.days.forEach(function (d) {
 });
 ok('素主菜·3 天都排出了晚餐', vegMainDays === 3);
 
+// ============ 4. 单槽换菜：只换该槽位，其余槽位不变 ============
+const dishIds = function (meal) { return meal.dishes.map(function (d) { return d.recipe.id; }); };
+const changedSlots = function (a, b) {
+  let n = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++;
+  return n;
+};
+const swapOpts = { richDinner: true, dinnerOnly: true, days: 3, servings: 3, maxMissing: 2 };
+const swapPlan = core.planWeek(R, [], swapOpts);
+
+// 主菜槽（index 0）：只换主菜，配菜和汤不变
+const d0 = swapPlan.days[0].dinner;
+const d0before = dishIds(d0);
+core.replaceDish(swapPlan, R, [], swapOpts, 0, 'dinner', 0);
+ok('单槽换菜·主菜槽只换该槽（其余不变）', changedSlots(d0before, dishIds(d0)) === 1 && dishIds(d0)[0] !== d0before[0]);
+
+// 配菜槽（index 1）：只换该配菜
+const d1 = swapPlan.days[0].dinner;
+const d1before = dishIds(d1);
+core.replaceDish(swapPlan, R, [], swapOpts, 0, 'dinner', 1);
+ok('单槽换菜·配菜槽只换该槽（其余不变）', changedSlots(d1before, dishIds(d1)) === 1 && dishIds(d1)[1] !== d1before[1]);
+
+// 汤槽（最后一槽）：只换汤
+const d2 = swapPlan.days[0].dinner;
+const d2before = dishIds(d2);
+const soupIdx = d2.dishes.length - 1;
+core.replaceDish(swapPlan, R, [], swapOpts, 0, 'dinner', soupIdx);
+ok('单槽换菜·汤槽只换该槽（其余不变）', changedSlots(d2before, dishIds(d2)) === 1 && dishIds(d2)[soupIdx] !== d2before[soupIdx]);
+
+// 换菜后槽位结构保持一致（main/sides/soups 与 dishes 对应，时长重算）
+const d3 = swapPlan.days[0].dinner;
+const minSum = d3.dishes.reduce(function (s, d) { return s + d.recipe.minutes; }, 0);
+ok('单槽换菜·结构一致且时长重算', d3.dishes.length === 1 + d3.sides.length + d3.soups.length && d3.totalMinutes === minSum);
+
+// ============ 5. 整餐重排：整餐换菜应把所有菜槽都换掉（原 bug：只换第一个菜） ============
+const swapPlan2 = core.planWeek(R, [], swapOpts);
+const rmBefore = dishIds(swapPlan2.days[0].dinner);
+core.replaceMeal(swapPlan2, R, [], swapOpts, 0, 'dinner');
+const rmAfter = dishIds(swapPlan2.days[0].dinner);
+ok('整餐重排·所有菜槽都换掉（不再只换第一个菜）',
+  rmAfter.length === rmBefore.length && rmAfter.every(function (id, i) { return id !== rmBefore[i]; }));
+
+// ============ 6. 无候选换菜：replaceDish 返回 null（槽位原样），供 UI 提示「暂无其他可选」 ============
+const sameIds = function (a, b) { return a.join() === b.join(); };
+
+// 6a. 菜池本身极小（≤8 菜）：池中只有一道汤 → 换汤槽无候选返回 null，槽位不变
+const tinyPool = pick(['洋葱炒肉丝', '青椒肉丝', '土豆肉丝', '黄瓜肉片',
+  '清炒时蔬', '蒜蓉油麦菜', '西红柿炒鸡蛋', '紫菜蛋花汤']);
+const tinyPlan = core.planWeek(tinyPool, [], swapOpts);
+const tinyMeal = tinyPlan.days[0].dinner;
+const tinyBefore = dishIds(tinyMeal);
+const tinyRes = core.replaceDish(tinyPlan, tinyPool, [], swapOpts, 0, 'dinner', tinyMeal.dishes.length - 1);
+ok('无候选·极小菜池(≤8)换汤返回 null 且槽位不变', tinyRes === null && sameIds(dishIds(tinyMeal), tinyBefore));
+const tinyResMain = core.replaceDish(tinyPlan, tinyPool, [], swapOpts, 0, 'dinner', 0);
+ok('无候选·极小菜池主菜有候选时返回 plan 并换掉', tinyResMain !== null && !sameIds(dishIds(tinyMeal), tinyBefore));
+
+// 6b. 过滤后无剩余候选：池中仅一道素菜+一道汤（其余全是荤）→ 换素配菜槽无候选返回 null
+const filtPool = pick(['洋葱炒肉丝', '青椒肉丝', '土豆肉丝', '黄瓜肉片', '酸豆角炒肉末',
+  '蒜苔炒肉', '芹菜炒牛肉', '可乐鸡翅', '红烧肉', '清炒时蔬', '紫菜蛋花汤']);
+const filtPlan = core.planWeek(filtPool, [], swapOpts);
+const filtMeal = filtPlan.days[0].dinner;
+const vegIdx = filtMeal.dishes.findIndex(function (d) { return d.recipe.name === '清炒时蔬'; });
+ok('无候选·过滤后无剩余候选（素配菜槽）前置成立', vegIdx > 0);
+const filtBefore = dishIds(filtMeal);
+const filtRes = core.replaceDish(filtPlan, filtPool, [], swapOpts, 0, 'dinner', vegIdx);
+ok('无候选·换素配菜槽返回 null 且槽位不变', filtRes === null && sameIds(dishIds(filtMeal), filtBefore));
+
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);
