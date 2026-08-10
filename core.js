@@ -516,6 +516,108 @@
     };
   }
 
+  // 替换某一餐里的某一个菜槽：只换该槽位，其余槽位不变
+  // 返回 null 表示换不出候选（槽位保持原样），供 UI 提示「暂无其他可选」
+  function replaceDish(plan, recipes, inventory, opts, dayIndex, mealType, dishIndex) {
+    const day = plan.days[dayIndex];
+    if (!day) return null;
+    const meal = day[mealType];
+    if (!meal || !Array.isArray(meal.dishes)) return null;
+    dishIndex = Number(dishIndex);
+    if (!isFinite(dishIndex) || dishIndex < 0 || dishIndex >= meal.dishes.length) return null;
+    const oldDish = meal.dishes[dishIndex];
+    if (!oldDish || !oldDish.recipe) return null;
+    const oldR = oldDish.recipe;
+
+    // 用过的菜历史（与 replaceMeal 一致）：之前所有天 + 当天另一餐
+    const usedBefore = [];
+    for (let i = 0; i < dayIndex; i++) {
+      ['lunch', 'dinner'].forEach(function (m) {
+        const other = plan.days[i][m];
+        if (other) other.dishes.forEach(function (d) { usedBefore.push(d.recipe.id); });
+      });
+    }
+    ['lunch', 'dinner'].forEach(function (m) {
+      if (m === mealType) return;
+      const other = day[m];
+      if (other) other.dishes.forEach(function (d) { usedBefore.push(d.recipe.id); });
+    });
+
+    // 当前餐内除被换槽位外的所有菜都要避免重复
+    const inMeal = meal.dishes
+      .map(function (d) { return d.recipe.id; })
+      .filter(function (id) { return id !== oldR.id; });
+
+    const invSet = buildInventorySet(inventory);
+    const sideUsed = new Set(usedBefore.slice(-9).concat(inMeal));
+    const mainUsed = new Set(usedBefore.slice(-15).concat(inMeal));
+
+    const sameDayMainId = mealType === 'dinner' && day.lunch && day.lunch.main
+      ? day.lunch.main.recipe.id : null;
+    const sameDayMainCat = mealType === 'dinner' && day.lunch && day.lunch.main
+      ? day.lunch.main.recipe.category : null;
+    const avoidCats = sameDayMainCat ? new Set([sameDayMainCat]) : new Set();
+
+    // 定位槽位角色：主菜 / 配菜 / 汤
+    let slotType = 'side', slotIdx = -1;
+    if (meal.main && meal.main.recipe.id === oldR.id) {
+      slotType = 'main';
+    } else {
+      for (let i = 0; i < meal.soups.length; i++) {
+        if (meal.soups[i].recipe.id === oldR.id) { slotType = 'soup'; slotIdx = i; break; }
+      }
+      if (slotType === 'side') {
+        for (let i = 0; i < meal.sides.length; i++) {
+          if (meal.sides[i].recipe.id === oldR.id) { slotIdx = i; break; }
+        }
+      }
+    }
+
+    let fresh = null;
+    if (slotType === 'main') {
+      const preferCats = mealType === 'lunch'
+        ? ['荤菜', '水产', '蛋豆', '主食']
+        : ['荤菜', '水产', '蛋豆'];
+      fresh = pickMain(recipes, invSet, opts, {
+        excludeIds: new Set([oldR.id].concat(sameDayMainId ? [sameDayMainId] : [])),
+        usedIds: mainUsed,
+        preferCats: preferCats,
+        avoidCats: avoidCats,
+        quick: opts.quick,
+        quickLimit: mealType === 'lunch' ? opts.quickLimit : Math.round(opts.quickLimit * 1.5)
+      });
+    } else {
+      const isSoup = slotType === 'soup';
+      const limit = isSoup
+        ? (mealType === 'lunch' ? 15 : 25)
+        : (mealType === 'lunch' ? Math.min(15, opts.quickLimit) : 20);
+      const cats = isSoup ? SOUP_CATS : PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS);
+      const filter = isSoup ? null : (isMeat(oldR) ? meatSideFilter : vegSideFilter);
+      const picked = pickSides(recipes, invSet, Object.assign({}, opts, { quickLimit: limit }), {
+        mainId: meal.main.recipe.id,
+        usedIds: sideUsed,
+        excludeIds: [oldR.id],
+        quick: opts.quick
+      }, 1, cats, filter);
+      fresh = picked.length ? picked[0] : null;
+    }
+
+    if (!fresh) return null; // 换不出合适的菜则保持原样，null 供 UI 提示「暂无其他可选」
+
+    if (slotType === 'main') {
+      meal.main = fresh;
+    } else if (slotType === 'soup') {
+      meal.soups[slotIdx] = fresh;
+    } else {
+      meal.sides[slotIdx] = fresh;
+    }
+    meal.dishes = [meal.main].concat(meal.sides, meal.soups);
+    meal.totalMinutes = meal.dishes.reduce(function (s, d) { return s + d.recipe.minutes; }, 0);
+    meal.missing = mealMissing(meal.main, meal.sides.concat(meal.soups), opts.servings);
+    plan.stats = computeStats(plan.days);
+    return plan;
+  }
+
   // 替换某一餐：保留之前的历史，只重选该餐
   function replaceMeal(plan, recipes, inventory, opts, dayIndex, mealType) {
     const usedBefore = [];
@@ -534,12 +636,12 @@
 
     const invSet = buildInventorySet(inventory);
     const old = day[mealType];
-    if (old && old.main) usedBefore.push(old.main.recipe.id);
+    if (old) old.dishes.forEach(function (d) { usedBefore.push(d.recipe.id); });
     const fresh = buildMeal(recipes, invSet, opts, dayIndex, mealType, {
       usedHistory: usedBefore,
       dayPlan: { lunch: day.lunch, dinner: day.dinner }
     });
-    if (!fresh) return plan;
+    if (!fresh) return null; // 重排不出这一餐则保持原样，null 供 UI 提示「暂无其他可选」
     day[mealType] = fresh;
     plan.stats = computeStats(plan.days);
     return plan;
@@ -700,6 +802,7 @@
     rankRecipes: rankRecipes,
     planWeek: planWeek,
     replaceMeal: replaceMeal,
+    replaceDish: replaceDish,
     aggregateShopping: aggregateShopping,
     shoppingText: shoppingText,
     planText: planText,

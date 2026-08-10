@@ -262,6 +262,7 @@
         '<span class="role">' + role + '</span>' +
         '<span>' + esc(d.recipe.emoji) + ' ' + esc(d.recipe.name) + '</span>' +
         '<span class="dish-badge">' + d.recipe.minutes + '分钟</span>' +
+        '<button class="btn btn-sm dish-swap" data-act="replace-dish" data-day="' + dayIdx + '" data-meal="' + mealKey + '" data-dish="' + i + '">换菜</button>' +
         '</div>';
     }).join('');
 
@@ -283,7 +284,7 @@
       '<span class="meal-tag">' + mealName + '</span>' +
       '<span class="meal-time">⏱ ' + meal.totalMinutes + '分钟 · 难度' + difficultyStars(main.recipe.difficulty) + '</span>' +
       '<span class="meal-actions">' +
-      '<button class="btn btn-sm" data-act="replace-meal" data-day="' + dayIdx + '" data-meal="' + mealKey + '">换菜</button>' +
+      '<button class="btn btn-sm" data-act="replace-meal" data-day="' + dayIdx + '" data-meal="' + mealKey + '" title="重排这一整餐">换整餐</button>' +
       '<button class="btn btn-sm btn-primary" data-act="meal-detail" data-day="' + dayIdx + '" data-meal="' + mealKey + '">做法</button>' +
       '</span></div>' +
       rows + missing + stepsHtml +
@@ -340,10 +341,22 @@
     const opts = Object.assign({}, state.settings);
     opts.servings = familyTotal(state.settings);
     opts.maxSpice = maxSpice();
-    C.replaceMeal(plan, enabledRecipes(), state.inventory, opts, Number(dayIdx), mealKey);
+    const changed = C.replaceMeal(plan, enabledRecipes(), state.inventory, opts, Number(dayIdx), mealKey);
     save();
     renderAll();
-    toast('已换一道菜');
+    toast(changed ? '已重排这一餐' : '暂无其他可选');
+  }
+
+  function replaceDish(dayIdx, mealKey, dishIdx) {
+    const plan = state.plan;
+    if (!plan) return;
+    const opts = Object.assign({}, state.settings);
+    opts.servings = familyTotal(state.settings);
+    opts.maxSpice = maxSpice();
+    const changed = C.replaceDish(plan, enabledRecipes(), state.inventory, opts, Number(dayIdx), mealKey, Number(dishIdx));
+    save();
+    renderAll();
+    toast(changed ? '已换一道菜' : '暂无其他可选');
   }
 
   function mealDetailModal(dayIdx, mealKey) {
@@ -1111,6 +1124,7 @@
         case 'generate-plan': generatePlan(); return;
         case 'regen-plan': generatePlan(); return;
         case 'replace-meal': replaceMeal(target.dataset.day, target.dataset.meal); return;
+        case 'replace-dish': replaceDish(target.dataset.day, target.dataset.meal, target.dataset.dish); return;
         case 'meal-detail': mealDetailModal(target.dataset.day, target.dataset.meal); return;
         case 'copy-plan':
           if (state.plan) copyText(C.planText(state.plan, recipesById()), '计划已复制');
