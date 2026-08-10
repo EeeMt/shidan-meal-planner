@@ -141,5 +141,34 @@ const filtBefore = dishIds(filtMeal);
 const filtRes = core.replaceDish(filtPlan, filtPool, [], swapOpts, 0, 'dinner', vegIdx);
 ok('无候选·换素配菜槽返回 null 且槽位不变', filtRes === null && sameIds(dishIds(filtMeal), filtBefore));
 
+// ============ 7. 换整餐回归：小池子换整餐绝不产出结构不完整的一餐 ============
+// 8 菜池与 11 菜池相对整餐 4 槽偏小：换整餐要么得到完整一餐、要么返回 null 且原餐不变
+function completeMeal(meal, opts) {
+  if (!meal || !meal.main) return false;
+  const needSides = opts.richDinner ? 2 : 1;
+  if (meal.sides.length < needSides) return false;
+  const mainR = meal.main.recipe;
+  if (mainR && mainR.category === '汤羹') return true;
+  return Array.isArray(meal.soups) && meal.soups.length === 1;
+}
+
+// 7a. 8 菜池（原 bug：产出 1 主 + 2 配 + 0 汤的部分餐）
+const rmPool8 = pick(['洋葱炒肉丝', '青椒肉丝', '土豆肉丝', '黄瓜肉片',
+  '清炒时蔬', '蒜蓉油麦菜', '西红柿炒鸡蛋', '紫菜蛋花汤']);
+const rmPlan8 = core.planWeek(rmPool8, [], swapOpts);
+const rm8Before = dishIds(rmPlan8.days[0].dinner);
+const rm8Res = core.replaceMeal(rmPlan8, rmPool8, [], swapOpts, 0, 'dinner');
+ok('换整餐·8 菜池绝不产出不完整一餐', completeMeal(rmPlan8.days[0].dinner, swapOpts));
+ok('换整餐·8 菜池 null 时原餐不变（完整替换则允许换掉）', rm8Res !== null || sameIds(dishIds(rmPlan8.days[0].dinner), rm8Before));
+
+// 7b. 11 菜池（原 bug：产出 1 主 + 1 配 + 0 汤的部分餐）
+const rmPool11 = pick(['洋葱炒肉丝', '青椒肉丝', '土豆肉丝', '黄瓜肉片', '酸豆角炒肉末',
+  '蒜苔炒肉', '芹菜炒牛肉', '可乐鸡翅', '红烧肉', '清炒时蔬', '紫菜蛋花汤']);
+const rmPlan11 = core.planWeek(rmPool11, [], swapOpts);
+const rm11Before = dishIds(rmPlan11.days[0].dinner);
+const rm11Res = core.replaceMeal(rmPlan11, rmPool11, [], swapOpts, 0, 'dinner');
+ok('换整餐·11 菜池绝不产出不完整一餐', completeMeal(rmPlan11.days[0].dinner, swapOpts));
+ok('换整餐·11 菜池 null 时原餐不变（完整替换则允许换掉）', rm11Res !== null || sameIds(dishIds(rmPlan11.days[0].dinner), rm11Before));
+
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);
