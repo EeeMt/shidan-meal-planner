@@ -54,6 +54,7 @@ function isTrustedHost(hostHeader) {
 const DATA_DIR = path.join(ROOT, 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const sseClients = new Set();
+const longPollClients = new Set();
 
 function loadDb() {
   try {
@@ -82,11 +83,51 @@ function persist() {
 }
 
 function broadcast() {
-  if (sseClients.size === 0) return;
-  const payload = 'event: state\ndata: ' + JSON.stringify({ rev: db.rev, data: db.data }) + '\n\n';
-  sseClients.forEach(function (res) {
-    try { res.write(payload); } catch (e) { sseClients.delete(res); }
+  if (sseClients.size > 0) {
+    const payload = 'event: state\ndata: ' + JSON.stringify({ rev: db.rev, data: db.data }) + '\n\n';
+    sseClients.forEach(function (res) {
+      try { res.write(payload); } catch (e) { sseClients.delete(res); }
+    });
+  }
+  longPollClients.forEach(finishLongPoll);
+}
+
+function writeState(res) {
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-cache, no-store, must-revalidate'
   });
+  res.end(JSON.stringify({ rev: db.rev, data: db.data }));
+}
+
+function removeLongPoll(client) {
+  if (!longPollClients.delete(client)) return false;
+  clearTimeout(client.timer);
+  return true;
+}
+
+function finishLongPoll(client) {
+  if (!removeLongPoll(client) || client.res.writableEnded) return;
+  try { writeState(client.res); } catch (e) { /* 连接已断开：无需响应 */ }
+}
+
+function handleWait(req, res) {
+  const since = Number(new URL(req.url, 'http://localhost').searchParams.get('rev')) || 0;
+  // 只按版本判断：服务器无数据时同样挂住等待，否则空服务器会让客户端忙轮询
+  if (db.rev > since) {
+    writeState(res);
+    return;
+  }
+  const client = { res: res, timer: null };
+  client.timer = setTimeout(function () {
+    if (!removeLongPoll(client) || res.writableEnded) return;
+    try {
+      res.writeHead(204, { 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+      res.end();
+    } catch (e) { /* 连接已断开 */ }
+  }, 25000);
+  longPollClients.add(client);
+  res.on('close', function () { removeLongPoll(client); });
 }
 
 function isValidState(d) {
@@ -113,8 +154,7 @@ function handleState(req, res) {
       res.end();
       return;
     }
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ rev: db.rev, data: db.data }));
+    writeState(res);
     return;
   }
   if (req.method === 'PUT') {
@@ -167,10 +207,12 @@ function handleState(req, res) {
 function handleEvents(req, res) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': 'no-cache, no-transform',
+    'X-Accel-Buffering': 'no',
     'Connection': 'keep-alive'
   });
-  res.write(': connected\n\n'); // 立即冲刷响应头
+  res.flushHeaders();
+  res.write(': connected\n\n');
   sseClients.add(res);
   res.on('close', function () { sseClients.delete(res); });
 }
@@ -201,6 +243,15 @@ http.createServer(function (req, res) {
   }
   if (urlPath === '/api/state') {
     handleState(req, res);
+    return;
+  }
+  if (urlPath === '/api/wait') {
+    if (req.method !== 'GET') {
+      res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: '仅支持 GET' }));
+    } else {
+      handleWait(req, res);
+    }
     return;
   }
   if (urlPath === '/api/events') {

@@ -1,6 +1,6 @@
 /* PWA 离线缓存：在线时 network-first（先访问网络，能及时发现新版本、进入 Authentik 登录流），
    仅网络不可用时才回退离线缓存；API 与 Authentik 响应绝不缓存 */
-const CACHE_NAME = 'shidan-v12';
+const CACHE_NAME = 'shidan-v14';
 
 self.addEventListener('install', function (event) {
   // sw.js 必须可在 Authentik 会话过期时更新；安装阶段不能预取受保护的
@@ -30,7 +30,13 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // API 永远访问网络，不缓存动态数据（否则会缓存 state、破坏 SSE 流）
+  // EventSource 与长轮询都是可长时间保持的响应，交给浏览器原生网络栈直连；
+  // 经 Worker 转发会让部分浏览器一直等待响应，后端甚至收不到连接。
+  if (url.pathname === '/api/events' || url.pathname === '/api/wait') {
+    return;
+  }
+
+  // 其余 API 永远访问网络，不缓存动态数据
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request).catch(function () {
