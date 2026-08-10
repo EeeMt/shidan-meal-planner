@@ -203,6 +203,23 @@ for (let d = 0; d < 7; d++) {
 }
 ok('换菜类型·荤换荤素换素汤换汤（全周主菜/配菜/汤槽）', typeFlip === 0 && typeSoup === 0);
 
+// 午餐主菜槽：素主菜不得换成主食，主食主菜只换主食
+let stapleFlip = 0;
+for (let d = 0; d < 7; d++) {
+  const p = core.planWeek(R, typeInv, typeOpts);
+  const lunch = p.days[d].lunch;
+  if (!lunch) continue;
+  const old = lunch.main.recipe;
+  const oldMeat = core.isMeat(old);
+  if (core.replaceDish(p, R, typeInv, typeOpts, d, 'lunch', 0)) {
+    const now = lunch.main.recipe;
+    if (oldMeat) { if (core.isMeat(now) !== oldMeat) stapleFlip++; }
+    else if (old.category === '主食') { if (now.category !== '主食') stapleFlip++; }
+    else if (now.category === '主食' || core.isMeat(now)) stapleFlip++;
+  }
+}
+ok('换菜类型·午餐素主菜不换主食、主食主菜只换主食', stapleFlip === 0);
+
 // ============ 9. 库存变化后刷新缺料：菜不变，缺失与统计重算 ============
 // 原 bug：计划里的 meal.missing / stats.missing 是生成时算好的，改库存后不重算，卡片显示旧缺失
 const refPlan = core.planWeek(R, [], { days: 2, servings: 2.5, quick: true, maxMissing: 2, quickLimit: 25, maxSpice: 2 });

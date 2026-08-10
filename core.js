@@ -282,10 +282,19 @@
 
   // 为某一餐挑选主菜
   // constraints.meatReq：true 只要荤、false 只要素、undefined 不限（换菜时保持荤素类型）
+  // constraints.onlyCats：严格限定候选类别（数组，如主食主菜只换主食）
+  // constraints.banCats：严格排除候选类别（数组，如素主菜不得换成主食）
   function pickMain(recipes, invSet, opts, constraints) {
     constraints = constraints || {};
     const meatReq = constraints.meatReq;
-    const reqOk = function (c) { return meatReq === undefined || isMeat(c.recipe) === meatReq; };
+    const onlyCats = constraints.onlyCats;
+    const banCats = constraints.banCats;
+    const reqOk = function (c) {
+      if (meatReq !== undefined && isMeat(c.recipe) !== meatReq) return false;
+      if (onlyCats && onlyCats.indexOf(c.recipe.category) === -1) return false;
+      if (banCats && banCats.indexOf(c.recipe.category) !== -1) return false;
+      return true;
+    };
     const rank = function (o) {
       return rankRecipes(recipes, invSet, o)
         .filter(reqOk)
@@ -583,6 +592,8 @@
         const preferCats = mealType === 'lunch'
           ? ['荤菜', '水产', '蛋豆', '主食']
           : ['荤菜', '水产', '蛋豆'];
+        // 荤主菜换荤、素主菜换素；主食主菜只换主食、素主菜不得换成主食
+        const oldIsStaple = oldR.category === '主食';
         return pickMain(recipes, invSet, opts, {
           excludeIds: new Set([oldR.id].concat(sameDayMainId ? [sameDayMainId] : [], extra || [])),
           usedIds: mainUsed,
@@ -590,7 +601,9 @@
           avoidCats: avoidCats,
           quick: opts.quick,
           quickLimit: mealType === 'lunch' ? opts.quickLimit : Math.round(opts.quickLimit * 1.5),
-          meatReq: isMeat(oldR) // 荤主菜换荤、素主菜换素
+          meatReq: isMeat(oldR),
+          onlyCats: oldIsStaple ? ['主食'] : null,
+          banCats: (!oldIsStaple && !isMeat(oldR)) ? ['主食'] : null
         });
       }
       const isSoup = slotType === 'soup';
