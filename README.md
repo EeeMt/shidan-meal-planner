@@ -2,7 +2,7 @@
 
 > 输入食材，自动安排一周三餐；想吃什么，自动生成采购清单。手机、电脑都能用，部署到家庭服务器后**全家人实时共享同一份数据**。
 
-食单是一个**纯前端、零依赖**的居家菜谱规划工具：内置 64 道家常菜，支持自建菜谱和批量导入外部菜谱，根据你登记的库存食材自动排出一周的午餐和晚餐（含配菜与做法），并能按家庭人数、小孩年龄、忌口偏好智能调整。
+食单是一个**纯前端、零依赖**的居家菜谱规划工具：内置家常菜谱库，支持自建菜谱和批量导入外部菜谱，根据你登记的库存食材自动排出一周的午餐和晚餐（含配菜与做法），并能按家庭人数、小孩年龄、忌口偏好智能调整。
 
 ---
 
@@ -142,7 +142,7 @@ node server.js 8765
 FoodArrangement/
 ├─ index.html              页面入口
 ├─ styles.css              样式（移动优先，电脑自适应）
-├─ recipes.js              内置菜谱库（72 道）
+├─ recipes.js              内置菜谱库
 ├─ classifier.js           荤素分类器：食材语义词典 + 最长匹配（独立纯函数，含川菜味型与“假荤”处理）
 ├─ core.js                 规划算法：匹配 / 荤素约束 / 忌口 / 替代 / 份量
 ├─ parser.js               导入菜谱的文本解析器
@@ -153,6 +153,7 @@ FoodArrangement/
 ├─ sw.js                   Service Worker（离线缓存）
 ├─ server.js               零依赖静态服务器 + 链接抓取代理
 ├─ serve.ps1               一键启动脚本（Windows）
+├─ tests/                  核心算法回归脚本（node tests/*.test.js）
 ├─ docs/screens/           README 界面截图
 ├─ data/state.json         家庭共享数据（运行时自动生成，备份它即可）
 └─ .gitignore
@@ -190,7 +191,14 @@ node --check app.js
 node -e "const R=require('./recipes.js'),C=require('./core.js');const p=C.planWeek(R,[],{days:7,servings:2.5,quick:true,maxMissing:2,quickLimit:25,maxSpice:0});console.log('餐数',p.days.length*2,'平均',p.stats.avgMinutes,'分钟')"
 ```
 
-仓库内不包含自动化测试套件；开发过程中使用 Node 脚本验证核心算法、Playwright 临时脚本验证界面流程（不在仓库中保留）。
+`tests/` 内含自包含回归脚本（无框架、无依赖，直接 `node` 运行，失败退出码 1）：
+
+```powershell
+node tests/classifier.test.js   # 荤素分类器：内置菜谱全表 + 川菜特例 + 词典冲突
+node tests/core.test.js         # 计划算法：每餐荤素组合（含丰盛晚餐两荤一素）
+```
+
+界面流程使用 Playwright 临时脚本验证（不在仓库中保留）。
 
 ## ❓ 常见问题
 
