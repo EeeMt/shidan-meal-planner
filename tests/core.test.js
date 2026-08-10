@@ -174,5 +174,33 @@ const mealThirdIds = dishIds(rotMealPlan.days[0].dinner);
 ok('整餐轮询·连续两次换餐后不回到最初那餐',
   r1 !== null && r2 !== null && !sameIds(mealThirdIds, mealFirstIds));
 
+// ============ 8. 换菜类型保持：荤换荤、素换素、汤换汤 ============
+// 原 bug：主菜槽换菜不限制荤素，库存齐全时素主菜换菜 28% 概率翻成荤主菜
+const typeInv = ['猪肉', '猪瘦肉', '五花肉', '牛肉', '鸡胸肉', '大虾', '鸡蛋', '西红柿', '土豆', '青椒', '洋葱',
+  '胡萝卜', '西兰花', '大白菜', '娃娃菜', '生菜', '油麦菜', '菠菜', '菜心', '茄子', '黄瓜', '冬瓜', '香菇', '木耳',
+  '豆腐', '嫩豆腐', '盐', '生抽', '老抽', '蚝油', '料酒', '醋', '白糖', '淀粉', '干辣椒', '花椒', '胡椒粉',
+  '食用油', '小葱', '生姜', '大蒜', '米饭'];
+const typeOpts = { days: 7, servings: 2.5, quick: true, maxMissing: 2, quickLimit: 25, maxSpice: 2 };
+let typeFlip = 0, typeSoup = 0;
+for (let d = 0; d < 7; d++) {
+  const p = core.planWeek(R, typeInv, typeOpts);
+  const m = p.days[d].dinner;
+  // 主菜槽：换后荤素必须不变
+  const mainWasMeat = core.isMeat(m.main.recipe);
+  if (core.replaceDish(p, R, typeInv, typeOpts, d, 'dinner', 0) && core.isMeat(m.main.recipe) !== mainWasMeat) typeFlip++;
+  // 素配菜槽：换后不能变荤、不能变汤
+  const vIdx = m.dishes.findIndex(function (x) { return x !== m.main && m.soups.indexOf(x) === -1 && !core.isMeat(x.recipe); });
+  if (vIdx > 0 && core.replaceDish(p, R, typeInv, typeOpts, d, 'dinner', vIdx)) {
+    if (core.isMeat(m.dishes[vIdx].recipe)) typeFlip++;
+    if (m.dishes[vIdx].recipe.category === '汤羹') typeSoup++;
+  }
+  // 荤配菜槽：换后必须仍是荤
+  const hIdx = m.dishes.findIndex(function (x) { return x !== m.main && m.soups.indexOf(x) === -1 && core.isMeat(x.recipe); });
+  if (hIdx > 0 && core.replaceDish(p, R, typeInv, typeOpts, d, 'dinner', hIdx) && !core.isMeat(m.dishes[hIdx].recipe)) typeFlip++;
+  // 汤槽：换后必须仍是汤
+  if (m.soups.length && core.replaceDish(p, R, typeInv, typeOpts, d, 'dinner', m.dishes.length - 1) && m.soups[0].recipe.category !== '汤羹') typeSoup++;
+}
+ok('换菜类型·荤换荤素换素汤换汤（全周主菜/配菜/汤槽）', typeFlip === 0 && typeSoup === 0);
+
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);

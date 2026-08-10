@@ -281,25 +281,27 @@
   }
 
   // 为某一餐挑选主菜
+  // constraints.meatReq：true 只要荤、false 只要素、undefined 不限（换菜时保持荤素类型）
   function pickMain(recipes, invSet, opts, constraints) {
-    let ranked = rankRecipes(recipes, invSet, { maxMissing: opts.maxMissing, maxSpice: opts.maxSpice });
-    // 同分时优先自带蛋白的菜（避免净挑无荤主食再临时补荤）
-    ranked = ranked.slice().sort(function (a, b) {
-      return (hasProtein(b.recipe) ? 1 : 0) - (hasProtein(a.recipe) ? 1 : 0);
-    });
+    constraints = constraints || {};
+    const meatReq = constraints.meatReq;
+    const reqOk = function (c) { return meatReq === undefined || isMeat(c.recipe) === meatReq; };
+    const rank = function (o) {
+      return rankRecipes(recipes, invSet, o)
+        .filter(reqOk)
+        // 同分时优先自带蛋白的菜（避免净挑无荤主食再临时补荤）
+        .sort(function (a, b) {
+          return (hasProtein(b.recipe) ? 1 : 0) - (hasProtein(a.recipe) ? 1 : 0);
+        });
+    };
+    let ranked = rank({ maxMissing: opts.maxMissing, maxSpice: opts.maxSpice });
     let chosen = pickBest(ranked, constraints);
     if (!chosen && opts.maxMissing < 99) {
       // 放松缺料限制，保证每餐都有菜
-      let relaxed = rankRecipes(recipes, invSet, { maxMissing: 99, maxSpice: opts.maxSpice }).slice().sort(function (a, b) {
-        return (hasProtein(b.recipe) ? 1 : 0) - (hasProtein(a.recipe) ? 1 : 0);
-      });
-      chosen = pickBest(relaxed, constraints);
+      chosen = pickBest(rank({ maxMissing: 99, maxSpice: opts.maxSpice }), constraints);
       if (!chosen) {
         // 实在没有符合忌口的菜时，保证有菜可吃（如全部库存都是辣菜）
-        const anySpice = rankRecipes(recipes, invSet, { maxMissing: 99, maxSpice: 2 }).slice().sort(function (a, b) {
-          return (hasProtein(b.recipe) ? 1 : 0) - (hasProtein(a.recipe) ? 1 : 0);
-        });
-        chosen = pickBest(anySpice, constraints);
+        chosen = pickBest(rank({ maxMissing: 99, maxSpice: 2 }), constraints);
       }
     }
     return chosen;
@@ -587,14 +589,16 @@
           preferCats: preferCats,
           avoidCats: avoidCats,
           quick: opts.quick,
-          quickLimit: mealType === 'lunch' ? opts.quickLimit : Math.round(opts.quickLimit * 1.5)
+          quickLimit: mealType === 'lunch' ? opts.quickLimit : Math.round(opts.quickLimit * 1.5),
+          meatReq: isMeat(oldR) // 荤主菜换荤、素主菜换素
         });
       }
       const isSoup = slotType === 'soup';
       const limit = isSoup
         ? (mealType === 'lunch' ? 15 : 25)
         : (mealType === 'lunch' ? Math.min(15, opts.quickLimit) : 20);
-      const cats = isSoup ? SOUP_CATS : PROTEIN_CATS.concat(VEG_CATS, SOUP_CATS);
+      // 素配菜池不含汤羹：素菜换素菜，不会把配菜位换成一碗汤
+      const cats = isSoup ? SOUP_CATS : PROTEIN_CATS.concat(VEG_CATS);
       const filter = isSoup ? null : (isMeat(oldR) ? meatSideFilter : vegSideFilter);
       const picked = pickSides(recipes, invSet, Object.assign({}, opts, { quickLimit: limit }), {
         mainId: meal.main.recipe.id,
