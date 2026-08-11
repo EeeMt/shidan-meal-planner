@@ -640,6 +640,17 @@
     return plan;
   }
 
+  // 一餐是否结构完整：主菜 + 足量配菜（+ 汤，主菜本身是汤则汤可缺）
+  function mealComplete(meal, opts, mealType) {
+    if (!meal || !meal.main || !Array.isArray(meal.sides)) return false;
+    const needSides = opts.richDinner && mealType === 'dinner' ? 2 : 1;
+    if (meal.sides.length < needSides) return false;
+    if (mealType !== 'dinner') return true;
+    const mainR = meal.main.recipe;
+    if (mainR && mainR.category === '汤羹') return true; // 主菜即汤：不加汤也完整
+    return Array.isArray(meal.soups) && meal.soups.length === 1;
+  }
+
   // 替换某一餐：保留之前的历史，只重选该餐
   // extraExcludeIds：近几轮换出的菜（可选），避免换走后又立刻换回最初那餐
   function replaceMeal(plan, recipes, inventory, opts, dayIndex, mealType, extraExcludeIds) {
@@ -669,7 +680,8 @@
     let fresh = build(usedBefore.concat(extraExcludeIds || []));
     // 近几轮换出的菜把候选占满时，退回纯历史重排，保证这一餐总能换出来
     if (!fresh && extraExcludeIds && extraExcludeIds.length) fresh = build(usedBefore);
-    if (!fresh) return null; // 重排不出这一餐则保持原样，null 供 UI 提示「暂无其他可选」
+    // 重排出的餐结构不完整（小池子凑不齐主菜+配菜+汤）时也保持原样，供 UI 提示「暂无其他可选」
+    if (!fresh || !mealComplete(fresh, opts, mealType)) return null;
     day[mealType] = fresh;
     plan.stats = computeStats(plan.days);
     return plan;

@@ -143,7 +143,36 @@ const filtBefore = dishIds(filtMeal);
 const filtRes = core.replaceDish(filtPlan, filtPool, [], swapOpts, 0, 'dinner', vegIdx);
 ok('无候选·换素配菜槽返回 null 且槽位不变', filtRes === null && sameIds(dishIds(filtMeal), filtBefore));
 
-// ============ 7. 换菜轮询回归：连续换菜不得在两菜之间来回 ============
+// ============ 7. 换整餐回归：小池子换整餐绝不产出结构不完整的一餐 ============
+// 8 菜池与 11 菜池相对整餐 4 槽偏小：换整餐要么得到完整一餐、要么返回 null 且原餐不变
+function completeMeal(meal, opts) {
+  if (!meal || !meal.main) return false;
+  const needSides = opts.richDinner ? 2 : 1;
+  if (meal.sides.length < needSides) return false;
+  const mainR = meal.main.recipe;
+  if (mainR && mainR.category === '汤羹') return true;
+  return Array.isArray(meal.soups) && meal.soups.length === 1;
+}
+
+// 7a. 8 菜池（原 bug：产出 1 主 + 2 配 + 0 汤的部分餐）
+const rmPool8 = pick(['洋葱炒肉丝', '青椒肉丝', '土豆肉丝', '黄瓜肉片',
+  '清炒时蔬', '蒜蓉油麦菜', '西红柿炒鸡蛋', '紫菜蛋花汤']);
+const rmPlan8 = core.planWeek(rmPool8, [], swapOpts);
+const rm8Before = dishIds(rmPlan8.days[0].dinner);
+const rm8Res = core.replaceMeal(rmPlan8, rmPool8, [], swapOpts, 0, 'dinner');
+ok('换整餐·8 菜池绝不产出不完整一餐', completeMeal(rmPlan8.days[0].dinner, swapOpts));
+ok('换整餐·8 菜池 null 时原餐不变（完整替换则允许换掉）', rm8Res !== null || sameIds(dishIds(rmPlan8.days[0].dinner), rm8Before));
+
+// 7b. 11 菜池（原 bug：产出 1 主 + 1 配 + 0 汤的部分餐）
+const rmPool11 = pick(['洋葱炒肉丝', '青椒肉丝', '土豆肉丝', '黄瓜肉片', '酸豆角炒肉末',
+  '蒜苔炒肉', '芹菜炒牛肉', '可乐鸡翅', '红烧肉', '清炒时蔬', '紫菜蛋花汤']);
+const rmPlan11 = core.planWeek(rmPool11, [], swapOpts);
+const rm11Before = dishIds(rmPlan11.days[0].dinner);
+const rm11Res = core.replaceMeal(rmPlan11, rmPool11, [], swapOpts, 0, 'dinner');
+ok('换整餐·11 菜池绝不产出不完整一餐', completeMeal(rmPlan11.days[0].dinner, swapOpts));
+ok('换整餐·11 菜池 null 时原餐不变（完整替换则允许换掉）', rm11Res !== null || sameIds(dishIds(rmPlan11.days[0].dinner), rm11Before));
+
+// ============ 8. 换菜轮询回归：连续换菜不得在两菜之间来回 ============
 // 原 bug：候选池很大，但只排除当前菜，换出的菜立刻以第一名身份被换回，两菜死循环。
 // 修复：调用方把「近几轮换出的菜」经 extraExcludeIds 传入，候选真正轮转
 const rotOpts = { dinnerOnly: true, days: 1, servings: 3, maxMissing: 2, quick: true, quickLimit: 25 };
@@ -175,7 +204,7 @@ const mealThirdIds = dishIds(rotMealPlan.days[0].dinner);
 ok('整餐轮询·连续两次换餐后不回到最初那餐',
   r1 !== null && r2 !== null && !sameIds(mealThirdIds, mealFirstIds));
 
-// ============ 8. 换菜类型保持：荤换荤、素换素、汤换汤 ============
+// ============ 9. 换菜类型保持：荤换荤、素换素、汤换汤 ============
 // 原 bug：主菜槽换菜不限制荤素，库存齐全时素主菜换菜 28% 概率翻成荤主菜
 const typeInv = ['猪肉', '猪瘦肉', '五花肉', '牛肉', '鸡胸肉', '大虾', '鸡蛋', '西红柿', '土豆', '青椒', '洋葱',
   '胡萝卜', '西兰花', '大白菜', '娃娃菜', '生菜', '油麦菜', '菠菜', '菜心', '茄子', '黄瓜', '冬瓜', '香菇', '木耳',
@@ -229,7 +258,7 @@ for (let d = 0; d < 7; d++) {
 }
 ok('换菜类型·主菜槽连续换 6 次：荤保持荤、素不换主食/汤、主食只换主食', stapleFlip === 0);
 
-// ============ 9. 库存变化后刷新缺料：菜不变，缺失与统计重算 ============
+// ============ 10. 库存变化后刷新缺料：菜不变，缺失与统计重算 ============
 // 原 bug：计划里的 meal.missing / stats.missing 是生成时算好的，改库存后不重算，卡片显示旧缺失
 const refPlan = core.planWeek(R, [], { days: 2, servings: 2.5, quick: true, maxMissing: 2, quickLimit: 25, maxSpice: 2 });
 const refIds0 = refPlan.days.map(function (d) { return dishIds(d.dinner); });
