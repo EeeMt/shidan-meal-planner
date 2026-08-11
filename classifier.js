@@ -80,8 +80,8 @@
     [GROUP.PROCESSED, '肉脯'], [GROUP.PROCESSED, '叉烧'], [GROUP.PROCESSED, '烧腊'],
     [GROUP.PROCESSED, '酱肉'], [GROUP.PROCESSED, '卤肉'], [GROUP.PROCESSED, '卤味'],
     [GROUP.PROCESSED, '咸肉'], [GROUP.PROCESSED, '丸子'], [GROUP.PROCESSED, '肉丸'],
-    // ---- 素·蛋白：蛋 ----
-    [GROUP.EGG, '蛋'],
+    // ---- 素·蛋白：蛋 / 奶（牛奶含"牛"字，词长覆盖防误判荤） ----
+    [GROUP.EGG, '蛋'], [GROUP.EGG, '牛奶'],
     // ---- 素·蛋白：豆制品（含素鸡/素鸭/素火腿等“假荤”，词长覆盖荤字） ----
     [GROUP.SOY, '豆腐乳'], [GROUP.SOY, '臭豆腐'], [GROUP.SOY, '冻豆腐'],
     [GROUP.SOY, '油豆腐'], [GROUP.SOY, '素火腿'], [GROUP.SOY, '米豆腐'],
@@ -101,10 +101,10 @@
     [GROUP.FUNGI, '香菇'], [GROUP.FUNGI, '蘑菇'], [GROUP.FUNGI, '平菇'],
     [GROUP.FUNGI, '口蘑'], [GROUP.FUNGI, '木耳'], [GROUP.FUNGI, '银耳'],
     [GROUP.FUNGI, '竹荪'], [GROUP.FUNGI, '松茸'], [GROUP.FUNGI, '鸡枞'],
-    // ---- 素：蔬菜（覆盖与荤/豆字同长的词：菜心、鱼腥草、黄豆芽…） ----
+    // ---- 素：蔬菜（覆盖与荤/豆字同长的词：菜心、鱼腥草、黄豆芽、空心菜里的"心"…） ----
     [GROUP.VEG, '鱼腥草'], [GROUP.VEG, '黄豆芽'], [GROUP.VEG, '四季豆'],
     [GROUP.VEG, '荷兰豆'], [GROUP.VEG, '酸豆角'], [GROUP.VEG, '豆角'],
-    [GROUP.VEG, '菜心'], [GROUP.VEG, '扁豆'], [GROUP.VEG, '豇豆'], [GROUP.VEG, '豆芽'],
+    [GROUP.VEG, '空心菜'], [GROUP.VEG, '菜心'], [GROUP.VEG, '扁豆'], [GROUP.VEG, '豇豆'], [GROUP.VEG, '豆芽'],
     // ---- 素：淀粉主食 ----
     [GROUP.STARCH, '红薯粉'], [GROUP.STARCH, '米饭'], [GROUP.STARCH, '大米'],
     [GROUP.STARCH, '面条'], [GROUP.STARCH, '挂面'], [GROUP.STARCH, '米粉'],
@@ -116,7 +116,7 @@
     [GROUP.STARCH, '凉皮'], [GROUP.STARCH, '河粉'], [GROUP.STARCH, '土豆'],
     [GROUP.STARCH, '红薯'], [GROUP.STARCH, '山药'], [GROUP.STARCH, '芋头'],
     [GROUP.STARCH, '南瓜'], [GROUP.STARCH, '玉米'], [GROUP.STARCH, '魔芋'],
-    [GROUP.STARCH, '淀粉'],
+    [GROUP.STARCH, '蒸肉粉'], [GROUP.STARCH, '淀粉'],
     // ---- 素：调味料（植物性，永远不算荤） ----
     [GROUP.SEASONING, '郫县豆瓣酱'],
     [GROUP.SEASONING, '肉豆蔻'], [GROUP.SEASONING, '生抽'], [GROUP.SEASONING, '老抽'],
