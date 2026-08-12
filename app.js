@@ -38,6 +38,10 @@
     });
   }
 
+  function disclosureIcon() {
+    return '<span class="disclosure-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 9l6 6 6-6"></path></svg></span>';
+  }
+
   function allRecipes() {
     return RECIPES.concat(state.customRecipes);
   }
@@ -105,9 +109,24 @@
     el._t = setTimeout(function () { el.hidden = true; }, 2200);
   }
 
+  function renderHeaderActions(tab) {
+    const el = $('#headerActions');
+    if (!el) return;
+    const currentTab = tab || $('.nav-item.active')?.dataset.tab || 'plan';
+    el.innerHTML = currentTab === 'plan' && state.plan
+      ? '<button class="btn btn-sm header-copy" data-act="copy-plan" aria-label="复制一周计划"><span aria-hidden="true">📋</span><span class="header-copy-label">复制计划</span></button>'
+      : '';
+  }
+
   function switchTab(tab) {
-    $$('.nav-item').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === tab); });
+    $$('.nav-item').forEach(function (b) {
+      const active = b.dataset.tab === tab;
+      b.classList.toggle('active', active);
+      if (active) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    });
     $$('.tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'tab-' + tab); });
+    renderHeaderActions(tab);
     window.scrollTo({ top: 0 });
   }
 
@@ -194,16 +213,17 @@
     const plan = state.plan;
     if (!plan) {
       panel.innerHTML =
-        '<div class="hero"><h2>🍳 今天吃什么？</h2><p>两条路，任选一条：</p></div>' +
+        '<div class="page-intro"><div><span class="eyebrow">从这里开饭</span><h1>今天吃什么？</h1><p>从库存或想吃的菜开始，几步就能安排好一周。</p></div><span class="page-emoji">🍳</span></div>' +
+        '<div class="hero"><div class="hero-kicker">快速开始</div><h2>选择你的起点</h2><p>录入食材，或先挑好想吃的菜。</p></div>' +
         '<div class="workflow-wrap">' +
-        '<div class="workflow-card"><div class="wf-ico">🧺</div><div>' +
+        '<div class="workflow-card"><div class="wf-ico">🧺</div><div class="wf-copy">' +
         '<h3>我有食材，安排一周</h3><p>把买回来的菜登记进库存，自动生成一周午餐 + 晚餐 + 配菜。</p>' +
         '<button class="btn btn-primary" data-act="goto-inventory">去登记食材</button></div></div>' +
-        '<div class="workflow-card"><div class="wf-ico">😋</div><div>' +
+        '<div class="workflow-card"><div class="wf-ico">😋</div><div class="wf-copy">' +
         '<h3>我想吃这些菜</h3><p>在菜谱里勾选想吃的菜，自动汇总需要购买的食材。</p>' +
         '<button class="btn btn-primary" data-act="goto-recipes">去挑菜</button></div></div>' +
         '</div>';
-      $('#headerActions').innerHTML = '';
+      renderHeaderActions();
       return;
     }
 
@@ -219,23 +239,24 @@
     const spiceText = hasKids
       ? (po.kidSpice === 'none' ? '孩子不辣' : (po.kidSpice === 'mild' ? '孩子微辣' : '孩子正常'))
       : (po.familySpice === 'none' ? '全家不辣' : (po.familySpice === 'mild' ? '全家微辣' : '全家正常'));
-    $('#headerActions').innerHTML = '<button class="btn btn-sm" data-act="copy-plan">📋 复制计划</button>';
+    renderHeaderActions();
 
     panel.innerHTML =
+      '<div class="page-intro"><div><span class="eyebrow">' + plan.days.length + ' 天 · ' + (state.settings.dinnerOnly ? '晚餐' : '午餐与晚餐') + '</span><h1>一周计划</h1><p>按家庭人数和忌口，安排好每天吃什么。</p></div><span class="page-emoji">🗓️</span></div>' +
       '<div class="plan-summary">' +
       '<div class="stat"><b>' + st.avgMinutes + '分</b><span>平均每餐用时</span></div>' +
       '<div class="stat"><b>' + st.uniqueRecipes + '道</b><span>本周用到的菜</span></div>' +
       '<div class="stat"><b>' + missingCount + '种</b><span>需补食材</span></div>' +
       '</div>' +
-      '<div class="muted" style="margin:0 0 12px;font-size:13px;">👨‍👩‍👦 ' + (hasKids ? (Number(po.adults) || 2) + ' 大人 + ' + (Number(po.kids) || 0) + ' 小孩（' + (Number(po.kidAge) || 5) + '岁 ≈ ' + (Number(po.kidPortion) || 0.5) + ' 成人份）' : (Number(po.adults) || 2) + ' 大人') + ' ≈ ' + fam + ' 人份 · ' + timeLimitText + ' · 忌口：' + spiceText + '</div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">' +
+      '<div class="plan-context">👨‍👩‍👦 ' + (hasKids ? (Number(po.adults) || 2) + ' 大人 + ' + (Number(po.kids) || 0) + ' 小孩（' + (Number(po.kidAge) || 5) + '岁 ≈ ' + (Number(po.kidPortion) || 0.5) + ' 成人份）' : (Number(po.adults) || 2) + ' 大人') + ' ≈ ' + fam + ' 人份 · ' + timeLimitText + ' · 忌口：' + spiceText + '</div>' +
+      '<div class="plan-actions">' +
       '<button class="btn btn-primary" data-act="regen-plan">🔄 重新生成</button>' +
       '<button class="btn" data-act="plan-missing-shopping">🛒 补缺采购清单</button>' +
       '<button class="btn btn-ghost" data-act="goto-inventory">修改库存</button>' +
       '</div>' +
-      (missingCount ? '<div class="missing-row" style="margin-bottom:12px;">' + st.missing.slice(0, 12).map(function (m) {
+      (missingCount ? '<details class="plan-missing"><summary><span>待补食材</span><b>' + missingCount + ' 种</b><span class="summary-hint"><span class="summary-closed">点击查看</span><span class="summary-open">收起</span></span>' + disclosureIcon() + '</summary><div class="missing-row">' + st.missing.map(function (m) {
         return '<span class="missing-chip">' + esc(m.name) + ' ' + esc(m.amount) + '</span>';
-      }).join('') + (st.missing.length > 12 ? '<span class="missing-chip">+更多</span>' : '') + '</div>' : '') +
+      }).join('') + '</div></details>' : '') +
       '<div class="week-grid">' +
       plan.days.map(function (d, i) { return dayCard(d, i); }).join('') +
       '</div>';
@@ -273,17 +294,10 @@
     }).join('');
 
     const missing = meal.missing.length
-      ? '<div class="missing-row">' + meal.missing.map(function (m) {
+      ? '<details class="meal-missing"><summary><span>缺 ' + meal.missing.length + ' 种食材</span><span class="summary-hint"><span class="summary-closed">查看明细</span><span class="summary-open">收起</span></span>' + disclosureIcon() + '</summary><div class="missing-row">' + meal.missing.map(function (m) {
         return '<span class="missing-chip">缺 ' + esc(m.name) + ' ' + esc(m.amount) + substituteHtml(m.name) + '</span>';
-      }).join('') + '</div>'
-      : '<div class="missing-row"><span class="stock-ok" style="font-size:12px;">✅ 库存可做</span></div>';
-
-    const stepsHtml = '<details class="steps"><summary>📖 做法（' + meal.totalMinutes + '分钟）</summary><div class="steps-body">' +
-      dishes.map(function (d) {
-        return '<div class="step-dish">' + esc(d.recipe.emoji) + ' ' + esc(d.recipe.name) + '</div><ol>' +
-          d.recipe.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') +
-          '</ol>';
-      }).join('') + '</div></details>';
+      }).join('') + '</div></details>'
+      : '<div class="meal-ready">✓ 库存可做</div>';
 
     return '<div class="meal-card">' +
       '<div class="meal-head">' +
@@ -293,7 +307,7 @@
       '<button class="btn btn-sm" data-act="replace-meal" data-day="' + dayIdx + '" data-meal="' + mealKey + '" title="重排这一整餐">换整餐</button>' +
       '<button class="btn btn-sm btn-primary" data-act="meal-detail" data-day="' + dayIdx + '" data-meal="' + mealKey + '">做法</button>' +
       '</span></div>' +
-      rows + missing + stepsHtml +
+      rows + missing +
       '</div>';
   }
 
@@ -424,6 +438,7 @@
 
     const pickedCount = state.cravings.filter(function (id) { return state.disabledRecipes.indexOf(id) === -1; }).length;
     panel.innerHTML =
+      '<div class="page-intro"><div><span class="eyebrow">' + filtered.length + ' 道可选</span><h1>菜谱</h1><p>挑几道想吃的菜，自动汇总成购物清单。</p></div><span class="page-emoji">📖</span></div>' +
       '<div class="toolbar">' +
       '<div class="search-box"><span>🔍</span><input id="recipeSearch" type="search" placeholder="搜菜名或食材" value="' + esc(recipeFilter.q) + '"></div>' +
       '<button class="btn" data-act="import-recipes">📥 导入菜谱</button>' +
@@ -447,8 +462,8 @@
             spiceBadgeHtml(r) +
             '<span>⏱' + r.minutes + '分</span><span>' + difficultyStars(r.difficulty) + '</span></div>' +
             stockBadge(r) +
-            '<button class="rc-pick' + (picked ? ' picked' : '') + '" data-act="toggle-pick" data-recipe="' + esc(r.id) + '">' + (picked ? '✓' : '＋') + '</button>' +
-            '<button class="rc-toggle' + (disabled ? ' off' : '') + '" data-act="toggle-disable" data-recipe="' + esc(r.id) + '" title="' + (disabled ? '已禁用，点击启用' : '点击禁用，排菜/换菜时将跳过') + '">' + (disabled ? '▶' : '⏸') + '</button>' +
+            '<button class="rc-pick' + (picked ? ' picked' : '') + '" data-act="toggle-pick" data-recipe="' + esc(r.id) + '" aria-label="' + (picked ? '取消选择' : '选择') + esc(r.name) + '">' + (picked ? '✓' : '＋') + '</button>' +
+            '<button class="rc-toggle' + (disabled ? ' off' : '') + '" data-act="toggle-disable" data-recipe="' + esc(r.id) + '" aria-label="' + (disabled ? '启用' : '禁用') + esc(r.name) + '" title="' + (disabled ? '已禁用，点击启用' : '点击禁用，排菜/换菜时将跳过') + '">' + (disabled ? '▶' : '⏸') + '</button>' +
             (isCustom || isImported
               ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
                 '<button class="btn btn-sm" data-act="edit-recipe" data-recipe="' + esc(r.id) + '">编辑</button>' +
@@ -847,7 +862,8 @@
       : '<div class="muted" style="margin-bottom:10px;">还没有登记食材，先添加你买回来的菜吧。</div>';
 
     panel.innerHTML =
-      '<div class="card">' +
+      '<div class="page-intro"><div><span class="eyebrow">家中已有 ' + state.inventory.length + ' 种</span><h1>库存食材</h1><p>把家里现有的食材记下来，计划会更贴合。</p></div><span class="page-emoji">🧺</span></div>' +
+      '<div class="card inventory-entry">' +
       '<div class="card-title"><span>🧺 我的食材库存</span><button class="btn btn-sm btn-danger" data-act="clear-inv">清空</button></div>' +
       '<div class="inventory-input-row">' +
       '<input id="invInput" list="invDatalist" placeholder="输入食材，如：五花肉、鸡蛋" autocomplete="off">' +
@@ -858,13 +874,13 @@
       '<div class="muted" style="margin-top:8px;">提示：填入的食材越多，计划越贴合你的冰箱；缺的食材会标出来，可一键生成补购清单。</div>' +
       '</div>' +
       '<div class="card"><div class="card-title">✨ 常用食材</div><div class="muted" style="margin-bottom:10px;">点一下加入库存，再点一下移除。</div>' +
-      COMMON_GROUPS.map(function (g) {
-        return '<div class="suggest-group"><h4>' + esc(g.g) + '</h4><div class="suggest-chips">' +
+      COMMON_GROUPS.map(function (g, groupIndex) {
+        return '<details class="suggest-group"' + (groupIndex === 0 ? ' open' : '') + '><summary><span>' + esc(g.g) + '</span><span>' + g.items.length + ' 种</span>' + disclosureIcon() + '</summary><div class="suggest-chips">' +
           g.items.map(function (n) {
             const added = invSet.has(C.normName(n)) || invSet.has(C.SYNONYMS[C.normName(n)] || '');
             return '<button class="suggest-chip' + (added ? ' added' : '') + '" data-act="toggle-inv" data-name="' + esc(n) + '" title="点击添加，再点移除">' + esc(n) + (added ? ' ✓' : '') + '</button>';
           }).join('') +
-          '</div></div>';
+          '</div></details>';
       }).join('') +
       '</div>';
   }
@@ -959,6 +975,7 @@
     const shop = state.shopping;
     if (!shop || !shop.items.length) {
       panel.innerHTML =
+        '<div class="page-intro"><div><span class="eyebrow">还没有待买食材</span><h1>购物清单</h1><p>选好菜后，所需食材会自动归类。</p></div><span class="page-emoji">🛒</span></div>' +
         '<div class="empty-state"><span class="es-ico">🛒</span>' +
         '<b>购物清单还是空的</b><br>去菜谱里选几道想吃的菜，一键汇总要买的食材。' +
         '<br><button class="btn btn-primary" data-act="goto-recipes">去挑菜</button></div>';
@@ -984,7 +1001,8 @@
     }
 
     panel.innerHTML =
-      '<div class="card">' +
+      '<div class="page-intro"><div><span class="eyebrow">待买 ' + need.length + ' 种 · 已买 ' + done + ' 种</span><h1>购物清单</h1><p>按“需要购买 / 可选 / 家中已有”整理，买菜更轻松。</p></div><span class="page-emoji">🛒</span></div>' +
+      '<div class="card shopping-card">' +
       '<div class="card-title"><span>🛒 购物清单</span><span class="muted">' + esc(sourceText) + '</span></div>' +
       '<div class="shop-toolbar">' +
       '<button class="btn btn-primary" data-act="copy-shopping">📋 复制清单</button>' +
@@ -1019,7 +1037,8 @@
     const dinnerLimit = Math.round((Number(s.quickLimit) || 25) * 1.5);
     const ratio = autoKidPortion(s.kidAge);
     panel.innerHTML =
-      '<div class="card"><div class="card-title">👨‍👩‍👦 家庭饭量</div>' +
+      '<div class="page-intro"><div><span class="eyebrow">全家口味档案</span><h1>设置</h1><p>调整家庭人数、口味和计划生成方式。</p></div><span class="page-emoji">⚙️</span></div>' +
+      '<div class="card"><div class="card-title"><span>👨‍👩‍👦 家庭饭量</span><span class="card-note">影响份量</span></div>' +
       '<div class="setting-row"><div><div class="lbl">成人人数</div><div class="hint">按成人标准份计算</div></div>' +
       '<input type="number" min="1" max="8" value="' + (Number(s.adults) || 2) + '" data-setting="adults"></div>' +
       '<div class="setting-row"><div><div class="lbl">小孩人数</div><div class="hint">没有小孩可设为 0</div></div>' +
@@ -1030,7 +1049,7 @@
       '<input type="range" min="0.2" max="1.2" step="0.05" value="' + (Number(s.kidPortion) || ratio) + '" data-setting="kidPortion" style="width:130px;flex:none;"></div>' +
       '<div class="muted" style="padding-top:10px;border-top:1px solid var(--gray-100);">全家合计约 <b>' + fam + '</b> 人份（' + (Number(s.adults) || 2) + ' 成人' + (((Number(s.kids) || 0) > 0) ? ' + ' + (Number(s.kids) || 0) + ' 小孩 × ' + (Number(s.kidPortion) || ratio) : '') + '）</div>' +
       '</div>' +
-      '<div class="card"><div class="card-title">🚫 忌口</div>' +
+      '<div class="card"><div class="card-title"><span>🚫 忌口</span><span class="card-note">影响选菜</span></div>' +
       '<div class="setting-row"><div><div class="lbl">全家辣度</div><div class="hint">微辣只保留“微辣/不辣”的菜</div></div>' +
       '<select data-setting="familySpice">' +
       '<option value="normal"' + (s.familySpice === 'normal' ? ' selected' : '') + '>正常</option>' +
@@ -1045,7 +1064,7 @@
       '</select></div>' +
       '<div class="muted">生成计划时按“全家”和“小孩”中更严格的一档筛选（小孩人数为 0 时只看全家）；辣度标注：🌶️ 微辣、🌶️🌶️ 辣。</div>' +
       '</div>' +
-      '<div class="card"><div class="card-title">⚙️ 计划偏好</div>' +
+      '<div class="card"><div class="card-title"><span>⚙️ 计划偏好</span><span class="card-note">生成规则</span></div>' +
       '<div class="setting-row"><div><div class="lbl">每周天数</div><div class="hint">' + (s.dinnerOnly ? '生成几天的晚餐' : '生成几天的午餐和晚餐') + '</div></div>' +
       '<select data-setting="days" data-num><option value="5"' + (Number(s.days) === 5 ? ' selected' : '') + '>5 天</option><option value="7"' + (Number(s.days) === 7 ? ' selected' : '') + '>7 天</option></select></div>' +
       '<div class="setting-row"><div><div class="lbl">只计划晚餐</div><div class="hint">开启后每天只排晚餐（含配菜和汤），不排午餐</div></div>' +
@@ -1061,7 +1080,7 @@
       '<div class="setting-row"><div><div class="lbl">' + (s.dinnerOnly ? '快手基准（分钟）' : '午餐快手上限（分钟）') + '</div><div class="hint">' + (s.dinnerOnly ? '晚餐主菜按基准放宽 50%（约 ' + dinnerLimit + ' 分钟）' : '晚餐自动放宽 50%（约 ' + dinnerLimit + ' 分钟）') + '</div></div>' +
       '<input type="number" min="10" max="90" step="5" value="' + s.quickLimit + '" data-setting="quickLimit"></div>' +
       '</div>' +
-      '<div class="card"><div class="card-title">💾 数据</div>' +
+      '<div class="card"><div class="card-title"><span>💾 数据</span><span class="card-note">备份与迁移</span></div>' +
       '<div class="setting-row"><div><div class="lbl">导出数据</div><div class="hint">库存、自建菜谱、设置保存为 JSON 文件</div></div>' +
       '<button class="btn btn-sm" data-act="export-data">导出</button></div>' +
       '<div class="setting-row"><div><div class="lbl">导入数据</div><div class="hint">从备份文件恢复</div></div>' +
@@ -1304,7 +1323,8 @@
         const el = $('#syncBadge');
         if (!el) return;
         el.hidden = s !== 'offline';
-        el.textContent = '离线（仅本地）';
+        el.innerHTML = '离线<span class="sync-detail">（仅本地）</span>';
+        el.setAttribute('aria-label', '离线，仅保存在本地');
       }
     });
   }
