@@ -57,6 +57,33 @@
     return map;
   }
 
+  // 荤素下拉选项：value 1=荤 / 0=素（与存储的 boolean 对应）
+  function isMeatOptionsHtml(selected) {
+    return '<option value="1"' + (selected ? ' selected' : '') + '>荤</option>' +
+      '<option value="0"' + (!selected ? ' selected' : '') + '>素</option>';
+  }
+
+  // 按食材用分类器预填荤素（自建/导入表单的新建与编辑场景）
+  function classifyIsMeat(category, ingredients) {
+    try {
+      return !!window.MealClassify.classifyDish({ category: category, ingredients: ingredients }).isMeat;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // 食材变化时预填荤素；用户已手动选择过（dataset.touched）则不再覆盖
+  function prefillIsMeatFromInput(ingTextarea, categorySelect, isMeatSelect) {
+    if (isMeatSelect.dataset.touched) return;
+    const ingredients = String(ingTextarea.value || '').split('\n').map(parseIngredientLine).filter(Boolean);
+    isMeatSelect.value = classifyIsMeat(categorySelect ? categorySelect.value : '素菜', ingredients) ? '1' : '0';
+  }
+
+  // 旧计划归一化委托 core.normalizePlan：按 id 用当前菜谱重新解析内嵌快照（见 core.js）
+  function normalizePlan() {
+    C.normalizePlan(state.plan, recipesById());
+  }
+
   function save() {
     S.saveState(state);
     Sync.push(); // 推送服务器（离线时无副作用）
@@ -171,8 +198,8 @@
   function dishRole(dish, meal) {
     if (meal.soups.indexOf(dish) !== -1) return '汤';
     if (dish.recipe.category === '主食') return '主';
-    // 荤素按常识口径：必备配料含动物性食材为荤、豆腐算素（与 core.isMeat 一致）
-    return C.isMeat(dish.recipe) ? '荤' : '素';
+    // 荤素读菜谱 isMeat 标注（内置已回填、自建/导入录入时手工选择）
+    return dish.recipe.isMeat ? '荤' : '素';
   }
 
   function spiceValue(name) {
@@ -226,6 +253,7 @@
       renderHeaderActions();
       return;
     }
+    normalizePlan(); // 旧计划里内嵌的菜谱快照缺 isMeat，渲染前按当前菜谱归一化
 
     const st = plan.stats;
     const missingCount = st.missing.length;
@@ -563,6 +591,9 @@
       '<div class="form-field"><label>分类</label><select name="category">' +
       CATEGORIES.slice(1).map(function (c) { return '<option' + (r && r.category === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') +
       '</select></div>' +
+      '<div class="form-field"><label>荤素</label><select name="isMeat">' +
+      isMeatOptionsHtml(r ? !!r.isMeat : false) +
+      '</select><div class="hint">按已填食材自动预填，可改</div></div>' +
       '<div class="form-field"><label>用时（分钟）</label><input name="minutes" type="number" min="1" max="240" value="' + (r ? r.minutes : 20) + '"></div>' +
       '</div>' +
       '<div class="form-row2">' +
@@ -607,6 +638,7 @@
       name: String(fd.get('name') || '').trim(),
       emoji: String(fd.get('emoji') || '').trim() || '🍽️',
       category: String(fd.get('category')),
+      isMeat: String(fd.get('isMeat')) === '1',
       difficulty: Number(fd.get('difficulty')) || 1,
       minutes: Number(fd.get('minutes')) || 20,
       servings: Number(fd.get('servings')) || 2,
@@ -804,6 +836,9 @@
       '<div class="form-field"><label>分类</label><select data-f="category">' +
       CATEGORIES.slice(1).map(function (c) { return '<option' + (r.category === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') +
       '</select></div>' +
+      '<div class="form-field"><label>荤素</label><select data-f="isMeat">' +
+      isMeatOptionsHtml(classifyIsMeat(r.category, r.ingredients)) +
+      '</select></div>' +
       '<div class="form-field"><label>用时（分钟）</label><input data-f="minutes" type="number" min="1" max="300" value="' + r.minutes + '"></div>' +
       '<div class="form-field"><label>难度</label><select data-f="difficulty">' +
       [1, 2, 3].map(function (n) { return '<option value="' + n + '"' + (r.difficulty === n ? ' selected' : '') + '>' + (n === 1 ? '简单' : n === 2 ? '中等' : '较难') + '</option>'; }).join('') +
@@ -831,6 +866,7 @@
         name: name,
         emoji: '📄',
         category: card.querySelector('[data-f="category"]').value,
+        isMeat: card.querySelector('[data-f="isMeat"]').value === '1',
         minutes: Number(card.querySelector('[data-f="minutes"]').value) || 25,
         difficulty: Number(card.querySelector('[data-f="difficulty"]').value) || 2,
         servings: 2,
@@ -1239,9 +1275,22 @@
   });
 
   document.addEventListener('input', function (e) {
-    if (e.target.id === 'recipeSearch') {
-      recipeFilter.q = e.target.value;
+    const t = e.target;
+    if (t.id === 'recipeSearch') {
+      recipeFilter.q = t.value;
       renderRecipes();
+      return;
+    }
+    // 自建/编辑表单：食材变化时按 classifier 预填荤素（用户已手选则不覆盖）
+    if (t.matches && t.matches('#recipeForm textarea[name="ingredients"]')) {
+      const form = $('#recipeForm');
+      if (form) prefillIsMeatFromInput(t, form.querySelector('select[name="category"]'), form.querySelector('select[name="isMeat"]'));
+      return;
+    }
+    // 导入预览卡：食材变化时按 classifier 预填该卡荤素
+    if (t.matches && t.matches('[data-f="ingredients"]')) {
+      const card = t.closest('.import-card');
+      if (card) prefillIsMeatFromInput(t, card.querySelector('[data-f="category"]'), card.querySelector('[data-f="isMeat"]'));
     }
   });
 
@@ -1256,6 +1305,11 @@
 
   document.addEventListener('change', function (e) {
     const el = e.target;
+    // 用户手动改过荤素（自建/编辑表单或导入预览卡）：标记后不再被 classifier 预填覆盖
+    if (el.matches && el.matches('#recipeForm select[name="isMeat"], [data-f="isMeat"]')) {
+      el.dataset.touched = '1';
+      return;
+    }
     if (el.dataset.setting) {
       const key = el.dataset.setting;
       let value;

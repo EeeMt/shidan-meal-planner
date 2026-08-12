@@ -25,6 +25,20 @@
     try { localStorage.removeItem(PREFIX + key); } catch (e) { /* ignore */ }
   }
 
+  // 回填历史自建菜谱的 isMeat 标注（EEE-34 防御性：旧数据没有该字段，按 classifier 预填；已有标注不动）
+  function backfillIsMeat(list) {
+    if (!Array.isArray(list)) return [];
+    const Classify = (typeof self !== 'undefined' && self.MealClassify) ||
+      (typeof window !== 'undefined' && window.MealClassify);
+    if (!Classify) return list;
+    return list.map(function (r) {
+      if (r && typeof r === 'object' && typeof r.isMeat !== 'boolean') {
+        try { r.isMeat = Classify.classifyDish(r).isMeat; } catch (e) { r.isMeat = false; }
+      }
+      return r;
+    });
+  }
+
   // 修复/补全任意来源的原始状态（localStorage 或服务器），返回完整的 7 键对象
   function repairState(raw) {
     raw = raw || {};
@@ -57,7 +71,7 @@
       : { items: [], source: null };
     return {
       inventory: Array.isArray(raw.inventory) ? raw.inventory : [],
-      customRecipes: Array.isArray(raw.customRecipes) ? raw.customRecipes : [],
+      customRecipes: backfillIsMeat(raw.customRecipes),
       disabledRecipes: Array.isArray(raw.disabledRecipes) ? raw.disabledRecipes : [],
       settings: settings,
       plan: raw.plan || null,

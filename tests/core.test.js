@@ -10,6 +10,7 @@
 'use strict';
 const core = require('../core.js');
 const R = require('../recipes.js');
+const MealClassify = require('../classifier.js');
 
 let passed = 0, failed = 0;
 function ok(name, cond) {
@@ -302,6 +303,50 @@ const rtCovered = roundTrip.days.every(function (d) {
   });
 });
 ok('缺料刷新·JSON 往返后刷新仍有效（引用断裂场景）', rtCovered && roundTrip.stats.missing.length === 0);
+
+// ============ 11. 内置菜谱 isMeat 标注（EEE-34） ============
+// 内置 121 道全部带 boolean isMeat，且与 classifier 口径逐道一致
+// （classifier 的 EXPECT 全表已人工复核，此断言守住“标注=EXPECT”这一迁移目标）
+R.forEach(function (r) {
+  ok('标注·' + r.name + ' 带 isMeat 且与分类器一致',
+    typeof r.isMeat === 'boolean' && r.isMeat === MealClassify.classifyDish(r).isMeat);
+});
+
+// ============ 12. 旧计划归一化（EEE-34） ============
+// 旧 state.plan 内嵌整份旧菜谱快照（无 isMeat）；normalizePlan 按 id 重新解析到当前菜谱，
+// 且 main/sides/soups 与 dishes 引用统一（JSON 往返后引用会断裂，是浏览器真实形态）
+const byId = R.reduce(function (map, r) { map[r.id] = r; return map; }, {});
+const npOpts = { dinnerOnly: true, days: 2, servings: 2.5, maxMissing: 2 };
+const npPlan = core.planWeek(R, [], npOpts);
+const oldPlan = JSON.parse(JSON.stringify(npPlan)); // 切断引用 + 快照化
+oldPlan.days.forEach(function (d) {
+  ['lunch', 'dinner'].forEach(function (m) {
+    const meal = d[m];
+    if (!meal) return;
+    meal.dishes.forEach(function (dish) { if (dish.recipe) delete dish.recipe.isMeat; });
+    // 注入一道已删除的菜（id 查不到）验证兜底
+    if (m === 'dinner' && meal.dishes.length) {
+      meal.dishes.push({ recipe: { id: 'deleted-ghost', name: '已删除的菜', category: '素菜', minutes: 10, servings: 2, ingredients: [], steps: [] }, missing: [] });
+    }
+  });
+});
+const oldDishIds = oldPlan.days.map(function (d) { return d.dinner.dishes.map(function (x) { return x.recipe.id; }); });
+core.normalizePlan(oldPlan, byId);
+const npRefOk = oldPlan.days.every(function (d) {
+  return ['lunch', 'dinner'].every(function (m) {
+    const meal = d[m];
+    if (!meal || !meal.dishes.length) return true;
+    return meal.dishes.every(function (dish) {
+      if (dish.recipe.id === 'deleted-ghost') {
+        return dish.recipe.name === '已删除的菜'; // 兜底：保留原快照
+      }
+      return typeof dish.recipe.isMeat === 'boolean' && dish.recipe === byId[dish.recipe.id];
+    }) && meal.main === meal.dishes[0] && meal.sides.length + meal.soups.length === meal.dishes.length - 1;
+  });
+});
+ok('归一化·旧计划内嵌菜谱重新解析（补回 isMeat、引用统一、未知 id 兜底）', npRefOk);
+ok('归一化·菜谱集合不变（只补标注不换菜）',
+  JSON.stringify(oldPlan.days.map(function (d) { return d.dinner.dishes.map(function (x) { return x.recipe.id; }); })) === JSON.stringify(oldDishIds));
 
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);

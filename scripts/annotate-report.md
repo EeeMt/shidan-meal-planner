@@ -1,0 +1,133 @@
+# 内置菜谱荤素标注评审表（EEE-34）
+
+共 121 道内置菜谱，由 `classifier.classifyDish` 计算，与 `tests/classifier.test.js` EXPECT 全表逐道比对；
+同时审计 recipes.js 已落库的 `isMeat` 字段是否与分类器一致。一致项无标记；不一致/缺期望值/落库不符列红。
+
+分类器与 EXPECT 不一致：0 项，缺 EXPECT：0 项，落库 isMeat 与分类器不符：0 项。
+
+| id | name | category | 落库 isMeat | isMeat | hasProtein | 关键食材 | 比对 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `hongshao-doufu` | 红烧豆腐 | 蛋豆 | 素 | 素 | 是 | 蛋白:老豆腐 |  |
+| `huanggua-chaojidan` | 黄瓜炒鸡蛋 | 蛋豆 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `jiachang-doufu` | 家常豆腐 | 蛋豆 | 素 | 素 | 是 | 蛋白:老豆腐 |  |
+| `jiucai-chaojidan` | 韭菜炒蛋 | 蛋豆 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `mapo-doufu` | 麻婆豆腐 | 蛋豆 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `roumo-zhengdan` | 肉末蒸蛋 | 蛋豆 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `xihongshi-chaojidan` | 西红柿炒鸡蛋 | 蛋豆 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `xiaren-chaojidan` | 虾仁炒蛋 | 蛋豆 | 荤 | 荤 | 是 | 荤:虾仁 |  |
+| `xiangjian-doufu` | 香煎豆腐 | 蛋豆 | 素 | 素 | 是 | 蛋白:老豆腐 |  |
+| `baocai-larou` | 包菜炒腊肉 | 荤菜 | 荤 | 荤 | 是 | 荤:腊肉 |  |
+| `fenzheng-rou` | 粉蒸肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `ganguo-paigu` | 干锅排骨 | 荤菜 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `gongbao-jiding` | 宫保鸡丁 | 荤菜 | 荤 | 荤 | 是 | 荤:鸡胸肉 |  |
+| `heijiao-niuliu` | 黑椒牛柳 | 荤菜 | 荤 | 荤 | 是 | 荤:牛里脊 |  |
+| `hongjiao-rousi` | 红椒肉丝 | 荤菜 | 荤 | 荤 | 是 | 荤:猪里脊 |  |
+| `hongsanduo` | 红三剁 | 荤菜 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `hongshao-jitui` | 红烧鸡腿 | 荤菜 | 荤 | 荤 | 是 | 荤:鸡腿 |  |
+| `hongshao-paigu` | 红烧排骨 | 荤菜 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `hongshao-rou` | 红烧肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `huluobo-niurousi` | 胡萝卜牛肉丝 | 荤菜 | 荤 | 荤 | 是 | 荤:牛里脊 |  |
+| `huluobo-tudou-shaopaigu` | 胡萝卜土豆烧排骨 | 荤菜 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `huluobo-wuhuarou` | 胡萝卜五花肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `huacai-chaorou` | 花菜炒肉片 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `huanggua-roupian` | 黄瓜肉片 | 荤菜 | 荤 | 荤 | 是 | 荤:猪瘦肉 |  |
+| `huiguo-rou` | 回锅肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `jiangdou-roumo` | 豇豆肉末 | 荤菜 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `jingjiang-rousi` | 京酱肉丝 | 荤菜 | 荤 | 荤 | 是 | 荤:猪里脊 |  |
+| `kele-jichi` | 可乐鸡翅 | 荤菜 | 荤 | 荤 | 是 | 荤:鸡翅 |  |
+| `kugua-wuhuarou` | 苦瓜五花肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `larou-chaosuanmiao` | 腊肉炒蒜苗 | 荤菜 | 荤 | 荤 | 是 | 荤:腊肉 |  |
+| `lajiao-chaorou` | 辣椒炒肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `lazi-ji` | 辣子鸡 | 荤菜 | 荤 | 荤 | 是 | 荤:鸡腿肉 |  |
+| `mayi-shangshu` | 蚂蚁上树 | 荤菜 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `moyu-shaoya` | 魔芋烧鸭 | 荤菜 | 荤 | 荤 | 是 | 荤:鸭 |  |
+| `muxu-rou` | 木须肉 | 荤菜 | 荤 | 荤 | 是 | 荤:猪里脊 |  |
+| `qincai-chaoniurou` | 芹菜炒牛肉 | 荤菜 | 荤 | 荤 | 是 | 荤:牛肉 |  |
+| `qincai-douganrousi` | 芹菜豆干肉丝 | 荤菜 | 荤 | 荤 | 是 | 荤:猪里脊 |  |
+| `qingdou-roumo` | 青豆肉沫 | 荤菜 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `qingjiao-rousi` | 青椒肉丝 | 荤菜 | 荤 | 荤 | 是 | 荤:猪里脊 |  |
+| `roumo-qiezi` | 肉末茄子 | 荤菜 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `shuangjiao-jiding` | 双椒鸡丁 | 荤菜 | 荤 | 荤 | 是 | 荤:鸡腿肉 |  |
+| `shuizhu-roupian` | 水煮肉片 | 荤菜 | 荤 | 荤 | 是 | 荤:猪里脊 |  |
+| `sijidou-shaopaigu` | 四季豆烧排骨 | 荤菜 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `suandoujiao-chaoroumo` | 酸豆角炒肉末 | 荤菜 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `suantai-larou` | 蒜苔炒腊肉 | 荤菜 | 荤 | 荤 | 是 | 荤:腊肉 |  |
+| `suantai-chaorou` | 蒜苔炒肉 | 荤菜 | 荤 | 荤 | 是 | 荤:猪瘦肉 |  |
+| `tangcu-paigu` | 糖醋排骨 | 荤菜 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `tudou-dunniurou` | 土豆炖牛肉 | 荤菜 | 荤 | 荤 | 是 | 荤:牛腩 |  |
+| `tudou-huiguorou` | 土豆回锅肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `tudou-rousi` | 土豆肉丝 | 荤菜 | 荤 | 荤 | 是 | 荤:猪瘦肉 |  |
+| `wosun-wuhuarou` | 莴笋五花肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `xianggan-chaorou` | 香干炒肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `xianggu-huaji` | 香菇滑鸡 | 荤菜 | 荤 | 荤 | 是 | 荤:鸡腿肉 |  |
+| `xiaochao-huangniurou` | 小炒黄牛肉 | 荤菜 | 荤 | 荤 | 是 | 荤:牛肉 |  |
+| `xingbaogu-wuhuarou` | 杏鲍菇五花肉 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `yangcong-chaorousi` | 洋葱炒肉丝 | 荤菜 | 荤 | 荤 | 是 | 荤:猪瘦肉 |  |
+| `yuxiang-qiezi` | 鱼香茄子 | 荤菜 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `yuxiang-rousi` | 鱼香肉丝 | 荤菜 | 荤 | 荤 | 是 | 荤:猪里脊 |  |
+| `zhurou-dun-fentiao` | 猪肉炖粉条 | 荤菜 | 荤 | 荤 | 是 | 荤:五花肉 |  |
+| `ziran-yangrou` | 孜然羊肉 | 荤菜 | 荤 | 荤 | 是 | 荤:羊肉 |  |
+| `liangban-haidaisi` | 凉拌海带丝 | 凉菜 | 素 | 素 | 否 | 素 |  |
+| `liangban-huanggua` | 凉拌黄瓜 | 凉菜 | 素 | 素 | 否 | 素 |  |
+| `liangban-muer` | 凉拌木耳 | 凉菜 | 素 | 素 | 否 | 素 |  |
+| `pidan-doufu` | 皮蛋豆腐 | 凉菜 | 素 | 素 | 是 | 蛋白:嫩豆腐/皮蛋 |  |
+| `shaojiao-qiezi` | 烧椒茄子 | 凉菜 | 素 | 素 | 否 | 素 |  |
+| `baizhuo-xia` | 白灼虾 | 水产 | 荤 | 荤 | 是 | 荤:大虾 |  |
+| `duojiao-yutou` | 剁椒鱼头 | 水产 | 荤 | 荤 | 是 | 荤:鱼头 |  |
+| `hongshao-yukuai` | 红烧鱼块 | 水产 | 荤 | 荤 | 是 | 荤:草鱼 |  |
+| `qingzheng-luyu` | 清蒸鲈鱼 | 水产 | 荤 | 荤 | 是 | 荤:鲈鱼 |  |
+| `suancai-yu` | 酸菜鱼 | 水产 | 荤 | 荤 | 是 | 荤:草鱼 |  |
+| `suanrong-fensixia` | 蒜蓉粉丝虾 | 水产 | 荤 | 荤 | 是 | 荤:大虾 |  |
+| `xiangjian-daoyu` | 香煎带鱼 | 水产 | 荤 | 荤 | 是 | 荤:带鱼 |  |
+| `youmen-daxia` | 油焖大虾 | 水产 | 荤 | 荤 | 是 | 荤:大虾 |  |
+| `baizhuo-caixin` | 白灼菜心 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `chao-nanguasi` | 炒南瓜丝 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `chao-xiaobaicai` | 炒小白菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `culiu-tudousi` | 醋溜土豆丝 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `disanxian` | 地三鲜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `ganbian-sijidou` | 干煸四季豆 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `ganguo-huacai` | 干锅花菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `haoyou-shengcai` | 蚝油生菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `hetang-xiaochao` | 荷塘小炒 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `hupi-qingjiao` | 虎皮青椒 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `jiangdou-qiezi` | 豇豆茄子 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `qiangchao-lianbai` | 炝炒莲白 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `qinchao-shishu` | 清炒时蔬 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `shangtang-wawacai` | 上汤娃娃菜 | 素菜 | 素 | 素 | 是 | 蛋白:皮蛋 |  |
+| `shousi-baocai` | 手撕包菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `suchao-kongxincai` | 素炒空心菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `suchao-sigua` | 素炒丝瓜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `su-dongguapian` | 素冬瓜片 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `suanla-baicai` | 酸辣白菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `suanla-ouding` | 酸辣藕丁 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `suanrong-bocai` | 蒜蓉菠菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `suanrong-xilanhua` | 蒜蓉西兰花 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `suanrong-youmaicai` | 蒜蓉油麦菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `tangcu-lianbai` | 糖醋莲白 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `xianggu-youcai` | 香菇油菜 | 素菜 | 素 | 素 | 否 | 素 |  |
+| `baicai-doufutang` | 白菜豆腐汤 | 汤羹 | 素 | 素 | 是 | 蛋白:嫩豆腐 |  |
+| `bocai-doufutang` | 菠菜豆腐汤 | 汤羹 | 素 | 素 | 是 | 蛋白:嫩豆腐 |  |
+| `donggua-paigutang` | 冬瓜排骨汤 | 汤羹 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `donggua-wanzitang` | 冬瓜丸子汤 | 汤羹 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+| `fqie-danhuatang` | 番茄蛋花汤 | 汤羹 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `fanqie-dunniunan` | 番茄炖牛腩 | 汤羹 | 荤 | 荤 | 是 | 荤:牛腩 |  |
+| `huanggua-dantang` | 黄瓜蛋汤 | 汤羹 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `jungu-jitang` | 菌菇鸡汤 | 汤羹 | 荤 | 荤 | 是 | 荤:鸡 |  |
+| `lianou-paigutang` | 莲藕排骨汤 | 汤羹 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `luobo-paigutang` | 萝卜排骨汤 | 汤羹 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `shanyao-dunjitang` | 山药炖鸡汤 | 汤羹 | 荤 | 荤 | 是 | 荤:鸡 |  |
+| `sigua-dantang` | 丝瓜蛋汤 | 汤羹 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `suanla-tang` | 酸辣汤 | 汤羹 | 素 | 素 | 是 | 蛋白:嫩豆腐/鸡蛋 |  |
+| `suanluobo-laoyatang` | 酸萝卜老鸭汤 | 汤羹 | 荤 | 荤 | 是 | 荤:老鸭 |  |
+| `yumi-paigutang` | 玉米排骨汤 | 汤羹 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `yumi-shanyao-paigutang` | 玉米山药排骨汤 | 汤羹 | 荤 | 荤 | 是 | 荤:排骨 |  |
+| `zicai-danhuatang` | 紫菜蛋花汤 | 汤羹 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `congyou-banmian` | 葱油拌面 | 主食 | 素 | 素 | 否 | 素 |  |
+| `danchaofan` | 蛋炒饭 | 主食 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `fanqie-jidanmian` | 番茄鸡蛋面 | 主食 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `jiangyou-chaofan` | 酱油炒饭 | 主食 | 素 | 素 | 是 | 蛋白:鸡蛋 |  |
+| `gali-jiroufan` | 咖喱鸡肉盖浇饭 | 主食 | 荤 | 荤 | 是 | 荤:鸡腿肉 |  |
+| `zhajiang-mian` | 炸酱面 | 主食 | 荤 | 荤 | 是 | 荤:猪肉末 |  |
+
+> 灰区复核提示：蚝油/猪油/高汤/上汤等动物性调味默认不计荤（grayMeat=false）；素鸡素鸭/鱼香味型按配料说话。
+> 全部比对一致即迁移完成：`isMeat`（荤=true/素=false）已机械写入 recipes.js 每道菜，hasProtein 走派生不落库。

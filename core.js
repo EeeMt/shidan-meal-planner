@@ -2,17 +2,17 @@
  * 纯函数模块，浏览器和 Node 均可运行。
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./classifier.js'));
-  else root.MealCore = factory(root.MealClassify);
-})(typeof self !== 'undefined' ? self : this, function (MealClassify) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.MealCore = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
   const SIDE_CATS = ['素菜', '凉菜'];
   const SOUP_CATS = ['汤羹'];
   const MAIN_CATS = ['荤菜', '水产', '蛋豆', '主食', '素菜', '汤羹'];
-  // 荤素/蛋白判断统一委托 classifier.js（食材语义词典，含川菜味型与“假荤”处理）
-  const PROTEIN_CATS = MealClassify.CATEGORY_PROTEIN; // 有蛋白质来源的分类
-  const MEAT_CATS = MealClassify.CATEGORY_MEAT;       // 荤菜分类（兜底）
+  // 荤素/蛋白判断不再调用运行时分类器：荤素读菜谱 isMeat 标注，蛋白按派生口径（EEE-34）
+  const PROTEIN_CATS = ['荤菜', '水产', '蛋豆'];  // 有蛋白质来源的分类
+  const MEAT_CATS = ['荤菜', '水产'];             // 荤菜分类（兜底）
   const VEG_CATS = ['素菜', '凉菜'];
   const DAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   const WEEKDAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -126,15 +126,14 @@
     return DAY_NAMES[d.getDay()] + ' ' + formatDate(d);
   }
 
-  // 是否荤菜（家常口径，委托 classifier.js：必备配料含肉/禽/水产/加工肉为荤；
-  // 蛋、豆腐、菌菇等算素；高汤、猪油等灰区默认不计）
+  // 是否荤菜：读菜谱 isMeat 标注（内置已回填、自建/导入录入时手工选择，缺省按素计）
   function isMeat(recipe) {
-    return MealClassify.classifyDish(recipe).isMeat;
+    return !!recipe.isMeat;
   }
 
-  // 是否有蛋白质来源（荤 + 蛋 + 豆腐豆制品 + 干豆；肉末可选的家常菜按素计）
+  // 是否有蛋白质来源（派生，不落库）：荤标注，或分类属荤菜/水产/蛋豆
   function hasProtein(recipe) {
-    return MealClassify.classifyDish(recipe).hasProtein;
+    return !!(recipe.isMeat || PROTEIN_CATS.indexOf(recipe.category) !== -1);
   }
 
   function isVegetable(recipe) {
@@ -527,6 +526,33 @@
     };
   }
 
+  // 旧计划归一化（EEE-34）：plan 内嵌的 dish.recipe 是历史快照（缺 isMeat 等新字段），
+  // 按 id 用当前菜谱重新解析；解析不到（菜谱已删除）保留原快照兜底。
+  // dishes = [main, ...sides, ...soups]；main/sides/soups 与 dishes 可能被 JSON 往返切断引用，
+  // 归一化后统一指向同一批 dish 对象，保证荤素显示与换菜读到新标注。
+  // recipesById：id -> 当前菜谱对象的映射（含自建/导入）。
+  function normalizePlan(plan, recipesById) {
+    if (!plan || !Array.isArray(plan.days)) return plan;
+    const byId = recipesById || {};
+    plan.days.forEach(function (day) {
+      ['lunch', 'dinner'].forEach(function (m) {
+        const meal = day[m];
+        if (!meal || !Array.isArray(meal.dishes) || !meal.dishes.length) return;
+        const sidesCount = Array.isArray(meal.sides) ? meal.sides.length : 0;
+        meal.dishes.forEach(function (dish) {
+          if (dish && dish.recipe && dish.recipe.id) {
+            const live = byId[dish.recipe.id];
+            if (live) dish.recipe = live;
+          }
+        });
+        meal.main = meal.dishes[0] || null;
+        meal.sides = meal.dishes.slice(1, 1 + sidesCount);
+        meal.soups = meal.dishes.slice(1 + sidesCount);
+      });
+    });
+    return plan;
+  }
+
   // 替换某一餐里的某一个菜槽：只换该槽位，其余槽位不变
   // 返回 null 表示换不出候选（槽位保持原样），供 UI 提示「暂无其他可选」
   // extraExcludeIds：近几轮换出的菜（可选），排除它们让候选真正轮转，避免两菜之间来回换
@@ -865,6 +891,7 @@
     replaceMeal: replaceMeal,
     replaceDish: replaceDish,
     refreshPlanMissing: refreshPlanMissing,
+    normalizePlan: normalizePlan,
     aggregateShopping: aggregateShopping,
     shoppingText: shoppingText,
     planText: planText,
