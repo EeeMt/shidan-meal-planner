@@ -348,5 +348,19 @@ ok('归一化·旧计划内嵌菜谱重新解析（补回 isMeat、引用统一�
 ok('归一化·菜谱集合不变（只补标注不换菜）',
   JSON.stringify(oldPlan.days.map(function (d) { return d.dinner.dishes.map(function (x) { return x.recipe.id; }); })) === JSON.stringify(oldDishIds));
 
+// ============ 13. 重新制定一周计划：每次生成应随机不同（EEE-37） ============
+// 原 bug：planWeek 全确定性，重复点击「重新制定一周计划」得到完全相同的计划。
+// 修复：计划级洗牌打乱候选顺序，配合稳定排序让同分候选随机化，约束（荤素/忌口/缺料）不变。
+const regenOpts = { days: 7, servings: 2.5, quick: true, maxMissing: 2, quickLimit: 25, maxSpice: 2 };
+const regenSignatures = new Set();
+for (let i = 0; i < 6; i++) {
+  const p = core.planWeek(R, [], regenOpts);
+  regenSignatures.add(p.days.map(function (d) {
+    return ['lunch', 'dinner'].map(function (m) { return d[m] ? dishIds(d[m]).join('+') : 'x'; }).join('|');
+  }).join('\n'));
+}
+ok('重新制定·连续 6 次生成至少出现 2 种不同计划（随机换菜，实际 ' + regenSignatures.size + ' 种）',
+  regenSignatures.size >= 2);
+
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);

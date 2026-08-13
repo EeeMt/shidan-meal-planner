@@ -466,12 +466,22 @@
     };
   }
 
+  // Fisher–Yates 洗牌：打乱输入顺序，配合下方稳定排序实现同分候选随机化，
+  // 让「重新制定一周计划」每次生成不同（但同样满足荤素/忌口/缺料约束）的一周计划
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
   function planWeek(recipes, inventory, opts) {
     opts = Object.assign({
       days: 7, servings: 2, quick: true, maxMissing: 2, quickLimit: 25, start: new Date()
     }, opts || {});
     const invSet = buildInventorySet(inventory);
-    const allRecipes = recipes.slice();
+    const allRecipes = shuffle(recipes.slice());
     const state = { usedHistory: [], dayPlan: null };
     const days = [];
 
