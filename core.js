@@ -17,6 +17,11 @@
   const DAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   const WEEKDAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
+  // 「最优带」分数容差：候选得分 = 缺料数×10 + 用时（分）。随机挑选时只允许得分
+  // 在最优候选 + 容差以内的候选进入带内，让非并列最优槽位（如空库存首日首菜）也能
+  // 在连续重新生成时产生可见变化；带外候选仍被缺料/忌口/荤素等硬约束过滤，质量不退化（EEE-37）
+  const BEST_BAND_SCORE = 20;
+
   // 可互相替代的食材组（“缺 A 时，库存里有同组 B 就推荐 B”）
   const SUBSTITUTE_GROUPS = [
     ['猪里脊', '猪瘦肉', '猪肉', '猪肉末'],
@@ -249,6 +254,16 @@
       });
   }
 
+  // 候选得分：缺料数×10 + 用时（分），与 rankRecipes 的排序口径一致
+  function candidateScore(c) {
+    return c.missingCount * 10 + c.recipe.minutes;
+  }
+
+  // 带内均匀随机：避免「恒取第一名」导致最优槽位固定不变（EEE-37）
+  function pickRandom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
   function pickBest(candidates, constraints) {
     constraints = constraints || {};
     const excludeIds = constraints.excludeIds || new Set();
@@ -276,7 +291,17 @@
       const fast = ordered.filter(function (c) { return c.recipe.minutes <= quickLimit; });
       if (fast.length) ordered = fast;
     }
-    return ordered[0];
+    // 最优带均匀随机（EEE-37）：在「得分 ≤ 最优 + 容差」的带内等概率挑选，
+    // 使非并列最优槽位（如首日首菜）随重新生成而变化；带外候选被硬约束过滤，不退化。
+    // keepMeat（主菜槽）：带内还限定与最优候选同荤素，避免随机把主菜从荤翻成素（反之亦然）
+    const keepMeat = constraints.keepMeat;
+    const best = ordered[0];
+    const bestScore = candidateScore(best);
+    const band = ordered.filter(function (c) {
+      return candidateScore(c) <= bestScore + BEST_BAND_SCORE &&
+             (!keepMeat || c.recipe.isMeat === best.recipe.isMeat);
+    });
+    return band.length > 1 ? pickRandom(band) : best;
   }
 
   // 为某一餐挑选主菜
@@ -303,13 +328,13 @@
         });
     };
     let ranked = rank({ maxMissing: opts.maxMissing, maxSpice: opts.maxSpice });
-    let chosen = pickBest(ranked, constraints);
+    let chosen = pickBest(ranked, Object.assign({}, constraints, { keepMeat: true }));
     if (!chosen && opts.maxMissing < 99) {
       // 放松缺料限制，保证每餐都有菜
-      chosen = pickBest(rank({ maxMissing: 99, maxSpice: opts.maxSpice }), constraints);
+      chosen = pickBest(rank({ maxMissing: 99, maxSpice: opts.maxSpice }), Object.assign({}, constraints, { keepMeat: true }));
       if (!chosen) {
         // 实在没有符合忌口的菜时，保证有菜可吃（如全部库存都是辣菜）
-        chosen = pickBest(rank({ maxMissing: 99, maxSpice: 2 }), constraints);
+        chosen = pickBest(rank({ maxMissing: 99, maxSpice: 2 }), Object.assign({}, constraints, { keepMeat: true }));
       }
     }
     return chosen;

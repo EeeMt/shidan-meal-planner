@@ -350,17 +350,22 @@ ok('归一化·菜谱集合不变（只补标注不换菜）',
 
 // ============ 13. 重新制定一周计划：每次生成应随机不同（EEE-37） ============
 // 原 bug：planWeek 全确定性，重复点击「重新制定一周计划」得到完全相同的计划。
-// 修复：计划级洗牌打乱候选顺序，配合稳定排序让同分候选随机化，约束（荤素/忌口/缺料）不变。
+// 修复：planWeek 洗牌 + pickBest「最优带均匀随机」，让非并列最优槽位（如空库存首日首菜）
+// 也在连续重新生成时产生可见变化；荤素/忌口/缺料/结构硬约束不变。
 const regenOpts = { days: 7, servings: 2.5, quick: true, maxMissing: 2, quickLimit: 25, maxSpice: 2 };
 const regenSignatures = new Set();
+const regenFirstMains = new Set();
 for (let i = 0; i < 6; i++) {
   const p = core.planWeek(R, [], regenOpts);
   regenSignatures.add(p.days.map(function (d) {
     return ['lunch', 'dinner'].map(function (m) { return d[m] ? dishIds(d[m]).join('+') : 'x'; }).join('|');
   }).join('\n'));
+  if (p.days[0] && p.days[0].lunch && p.days[0].lunch.main) regenFirstMains.add(p.days[0].lunch.main.recipe.id);
 }
 ok('重新制定·连续 6 次生成至少出现 2 种不同计划（随机换菜，实际 ' + regenSignatures.size + ' 种）',
   regenSignatures.size >= 2);
+ok('重新制定·空库存首日首菜不再固定（至少出现 2 种，实际 ' + regenFirstMains.size + ' 种）',
+  regenFirstMains.size >= 2);
 
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);
