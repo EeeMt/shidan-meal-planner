@@ -354,18 +354,45 @@ ok('归一化·菜谱集合不变（只补标注不换菜）',
 // 也在连续重新生成时产生可见变化；荤素/忌口/缺料/结构硬约束不变。
 const regenOpts = { days: 7, servings: 2.5, quick: true, maxMissing: 2, quickLimit: 25, maxSpice: 2 };
 const regenSignatures = new Set();
-const regenFirstMains = new Set();
 for (let i = 0; i < 6; i++) {
   const p = core.planWeek(R, [], regenOpts);
   regenSignatures.add(p.days.map(function (d) {
     return ['lunch', 'dinner'].map(function (m) { return d[m] ? dishIds(d[m]).join('+') : 'x'; }).join('|');
   }).join('\n'));
-  if (p.days[0] && p.days[0].lunch && p.days[0].lunch.main) regenFirstMains.add(p.days[0].lunch.main.recipe.id);
 }
 ok('重新制定·连续 6 次生成至少出现 2 种不同计划（随机换菜，实际 ' + regenSignatures.size + ' 种）',
   regenSignatures.size >= 2);
-ok('重新制定·空库存首日首菜不再固定（至少出现 2 种，实际 ' + regenFirstMains.size + ' 种）',
-  regenFirstMains.size >= 2);
+// 首日首菜多样性按复核标准测 40 次：≥3 种（keepProtein 收窄主菜带后仍保持可见变化）
+const regenFirstMains = new Set();
+for (let i = 0; i < 40; i++) {
+  const p = core.planWeek(R, [], regenOpts);
+  if (p.days[0] && p.days[0].lunch && p.days[0].lunch.main) regenFirstMains.add(p.days[0].lunch.main.recipe.id);
+}
+ok('重新制定·空库存首日首菜至少 3 种（40 次生成，实际 ' + regenFirstMains.size + ' 种）',
+  regenFirstMains.size >= 3);
+
+// ============ 14. 单菜随机缺席（EEE-37 复核）：虾仁炒蛋可在重新生成时缺席 ============
+// 原问题：用户点名「虾仁炒蛋随机不掉」——空库存 200 次生成 100% 出现。
+// 修复：planWeek 每次生成随机排除 4~10 道菜（内置全库≥40 时），让特定菜也可缺席；
+// 同时整周计划多样性保持。缺席概率≈5%，200 次全出现的概率≈1e-6，断言稳定。
+const xiarenId = 'xiaren-chaojidan';
+let withoutXiaren = 0;
+const regenSigs2 = new Set();
+for (let i = 0; i < 200; i++) {
+  const p = core.planWeek(R, [], regenOpts);
+  regenSigs2.add(p.days.map(function (d) {
+    return ['lunch', 'dinner'].map(function (m) { return d[m] ? dishIds(d[m]).join('+') : 'x'; }).join('|');
+  }).join('\n'));
+  const hasXiaren = p.days.some(function (d) {
+    return ['lunch', 'dinner'].some(function (m) {
+      const meal = d[m];
+      return meal && meal.dishes.some(function (x) { return x.recipe.id === xiarenId; });
+    });
+  });
+  if (!hasXiaren) withoutXiaren++;
+}
+ok('单菜缺席·空库存 200 次生成至少 1 个不含虾仁炒蛋的计划（缺席 ' + withoutXiaren + ' 次）', withoutXiaren >= 1);
+ok('单菜缺席·整周计划多样性保持（至少 2 种，实际 ' + regenSigs2.size + ' 种）', regenSigs2.size >= 2);
 
 console.log('\n通过 ' + passed + ' 项，失败 ' + failed + ' 项');
 process.exit(failed ? 1 : 0);

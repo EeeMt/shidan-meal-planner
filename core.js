@@ -294,12 +294,16 @@
     // 最优带均匀随机（EEE-37）：在「得分 ≤ 最优 + 容差」的带内等概率挑选，
     // 使非并列最优槽位（如首日首菜）随重新生成而变化；带外候选被硬约束过滤，不退化。
     // keepMeat（主菜槽）：带内还限定与最优候选同荤素，避免随机把主菜从荤翻成素（反之亦然）
+    // keepProtein（主菜槽）：带内还限定与最优候选同蛋白口径，恢复「同分优先蛋白主菜」设计，
+    // 避免随机把蛋白主菜翻成无蛋白主食（EEE-37 复核）
     const keepMeat = constraints.keepMeat;
+    const keepProtein = constraints.keepProtein;
     const best = ordered[0];
     const bestScore = candidateScore(best);
     const band = ordered.filter(function (c) {
       return candidateScore(c) <= bestScore + BEST_BAND_SCORE &&
-             (!keepMeat || c.recipe.isMeat === best.recipe.isMeat);
+             (!keepMeat || !!c.recipe.isMeat === !!best.recipe.isMeat) &&
+             (!keepProtein || hasProtein(c.recipe) === hasProtein(best.recipe));
     });
     return band.length > 1 ? pickRandom(band) : best;
   }
@@ -328,13 +332,13 @@
         });
     };
     let ranked = rank({ maxMissing: opts.maxMissing, maxSpice: opts.maxSpice });
-    let chosen = pickBest(ranked, Object.assign({}, constraints, { keepMeat: true }));
+    let chosen = pickBest(ranked, Object.assign({}, constraints, { keepMeat: true, keepProtein: true }));
     if (!chosen && opts.maxMissing < 99) {
       // 放松缺料限制，保证每餐都有菜
-      chosen = pickBest(rank({ maxMissing: 99, maxSpice: opts.maxSpice }), Object.assign({}, constraints, { keepMeat: true }));
+      chosen = pickBest(rank({ maxMissing: 99, maxSpice: opts.maxSpice }), Object.assign({}, constraints, { keepMeat: true, keepProtein: true }));
       if (!chosen) {
         // 实在没有符合忌口的菜时，保证有菜可吃（如全部库存都是辣菜）
-        chosen = pickBest(rank({ maxMissing: 99, maxSpice: 2 }), Object.assign({}, constraints, { keepMeat: true }));
+        chosen = pickBest(rank({ maxMissing: 99, maxSpice: 2 }), Object.assign({}, constraints, { keepMeat: true, keepProtein: true }));
       }
     }
     return chosen;
@@ -405,8 +409,11 @@
       : ['荤菜', '水产', '蛋豆'];
     const avoidCats = sameDayMainCat ? new Set([sameDayMainCat]) : new Set();
 
+    const mainExcluded = new Set(state.excluded || []);
+    if (sameDayMainId) mainExcluded.add(sameDayMainId);
+
     const main = pickMain(recipes, invSet, opts, {
-      excludeIds: new Set(sameDayMainId ? [sameDayMainId] : []),
+      excludeIds: mainExcluded,
       usedIds: mainUsed,
       preferCats: preferCats,
       avoidCats: avoidCats,
@@ -430,7 +437,7 @@
       const picked = pickSides(recipes, invSet, Object.assign({}, opts, { quickLimit: limit }), {
         mainId: mainR.id,
         usedIds: sideUsed,
-        excludeIds: [],
+        excludeIds: state.excluded ? Array.from(state.excluded) : [],
         quick: opts.quick
       }, 1, cats, filter);
       if (picked.length) {
@@ -470,7 +477,7 @@
       const picked = pickSides(recipes, invSet, Object.assign({}, opts, { quickLimit: soupLimit }), {
         mainId: mainR.id,
         usedIds: soupUsed,
-        excludeIds: [],
+        excludeIds: state.excluded ? Array.from(state.excluded) : [],
         quick: opts.quick
       }, 1, SOUP_CATS);
       if (picked.length) {
@@ -491,6 +498,17 @@
     };
   }
 
+  // 单次生成的随机排除集：从内置全库（≥40 道）里随机抽 4~10 道本计划不排，
+  // 保证用户点名的菜（如虾仁炒蛋）也能在某些次重新生成中缺席（EEE-37 复核）。
+  // 菜池过小（<40）时返回空集，避免小池子结构测试因排除而断菜。
+  function randomExcluded(recipes) {
+    if (recipes.length < 40) return new Set();
+    const n = 4 + Math.floor(Math.random() * 7); // 4~10
+    const copy = recipes.slice();
+    shuffle(copy);
+    return new Set(copy.slice(0, n).map(function (r) { return r.id; }));
+  }
+
   // Fisher–Yates 洗牌：打乱输入顺序，配合下方稳定排序实现同分候选随机化，
   // 让「重新制定一周计划」每次生成不同（但同样满足荤素/忌口/缺料约束）的一周计划
   function shuffle(arr) {
@@ -507,7 +525,7 @@
     }, opts || {});
     const invSet = buildInventorySet(inventory);
     const allRecipes = shuffle(recipes.slice());
-    const state = { usedHistory: [], dayPlan: null };
+    const state = { usedHistory: [], dayPlan: null, excluded: randomExcluded(allRecipes) };
     const days = [];
 
     function pushMeal(meal) {
